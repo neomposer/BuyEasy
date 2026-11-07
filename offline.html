@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BuyEasy — You're offline</title>
+<meta name="theme-color" content="#22c55e"><link rel="icon" href="/icon-192.png">
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:28px;background:linear-gradient(160deg,#052e16 0%,#0b0b0b 55%);color:#fff;font-family:Inter,system-ui,sans-serif;text-align:center}
+.c{max-width:360px;width:100%}.ring{width:116px;height:116px;margin:0 auto 22px;border-radius:50%;display:grid;place-items:center;background:rgba(34,197,94,.12);border:2px solid rgba(34,197,94,.45);animation:p 2.2s infinite}
+@keyframes p{0%{box-shadow:0 0 0 0 rgba(34,197,94,.45)}70%{box-shadow:0 0 0 26px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}}
+h1{font-size:24px;margin:0 0 8px;font-weight:900}p{margin:0 0 22px;color:#b9c4bd;font-size:14px;line-height:1.55}
+ul{list-style:none;margin:0 0 24px;padding:12px 16px;text-align:left;background:rgba(255,255,255,.05);border-radius:14px;font-size:13px;color:#d7e0da}li{padding:5px 0}li:before{content:"✓";color:#22c55e;font-weight:900;margin-right:8px}
+button{width:100%;padding:14px;border:0;border-radius:14px;background:#22c55e;color:#04210f;font-weight:900;font-size:15px;cursor:pointer}.b{margin-top:22px;font-size:12px;color:#7d8a82}
+</style></head>
+<body><div class="c"><div class="ring"><svg width="54" height="54" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8.8a15 15 0 0 1 4.2-2.7M22 8.8a15 15 0 0 0-8.4-4.6M5 12.9a10 10 0 0 1 3.4-2M19 12.9a10 10 0 0 0-2.3-1.9M8.5 16.4a5 5 0 0 1 7 0"/><circle cx="12" cy="20" r="1" fill="#22c55e"/><path d="M3 3l18 18"/></svg></div>
+<h1>You're offline</h1><p>BuyEasy can't reach the internet right now. Your data or Wi-Fi may be off, or you have no signal.</p>
+<ul><li>Turn on mobile data or Wi-Fi</li><li>Move to a spot with better signal</li><li>We'll reconnect automatically</li></ul>
+<button id="r" type="button">Try again</button><div class="b">BuyEasy</div></div>
+<script>
+document.getElementById('r').onclick=function(){location.href='/index.html';};
+window.addEventListener('online',function(){location.href='/index.html';});
+setInterval(function(){if(navigator.onLine){fetch('/manifest.json?p='+Date.now(),{cache:'no-store'}).then(function(){location.href='/index.html';}).catch(function(){});}},6000);
+</script></body></html>

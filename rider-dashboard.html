@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BuyEasy — Rider</title>
+<link rel="manifest" href="manifest.json"><meta name="theme-color" content="#22c55e"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+<link rel="stylesheet" href="mobile.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+<script src="supabase.js"></script>
+<script src="net-status.js"></script>
+<script src="alerts.js"></script>
+<script src="ratings.js"></script>
+<script src="rider-tracking.js"></script>
+<script src="role-switch.js"></script>
+<script src="utils.js"></script>
+<style>
+
+/* APP DOWNLOAD BUTTON - GOD MODE */
+#appInstallBar{
+  position:fixed;bottom:0;left:0;right:0;
+  background:#101010;border-top:1px solid #222;
+  padding:12px 16px;z-index:99999;
+  display:none;align-items:center;justify-content:space-between;
+  box-shadow:0 -10px 30px rgba(0,0,0,.6);
+}
+#appInstallBar.show{display:flex}
+#appInstallBar .left{display:flex;align-items:center;gap:12px}
+#appInstallBar .icon{width:44px;height:44px;border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:22px}
+#appInstallBar .txt b{display:block;font-size:13px;color:#fff}
+#appInstallBar .txt span{font-size:10px;color:#888}
+#appInstallBar .btn{background:#fff;color:#000;padding:10px 20px;border-radius:20px;font-weight:900;font-size:12px;border:0;cursor:pointer}
+#appInstallBar .close{margin-left:12px;color:#555;font-size:18px;cursor:pointer}
+
+:root{--bg:#0f0f0f;--card:#1a1a1a;--card2:#151515;--card3:#111;--border:#2a2a2a;--border2:#222;--text:#fff;--muted:#888;--muted2:#777}
+body{background:var(--bg);color:var(--text);transition:.3s;margin:0;padding-bottom:90px}
+body.light{--bg:#f5f5f5;--card:#fff;--card2:#fff;--card3:#f9f9f9;--border:#e5e5e5;--border2:#eee;--text:#111;--muted:#666;--muted2:#888}
+.dash{max-width:700px;margin:0 auto;padding:16px}
+.dash-header{background:var(--card);border:1px solid var(--border);padding:14px 16px;border-radius:18px;transition:.3s}
+.top-row{display:flex;justify-content:space-between;align-items:center}
+.stats-row{display:flex;gap:10px;margin-top:14px}
+.stat{flex:1;background:var(--card3);border:1px solid var(--border2);border-radius:12px;padding:10px 12px}
+.stat b{font-size:16px;display:block;margin-top:2px;transition:.3s}
+.stat b.green{color:#22c55e;text-shadow:0 0 12px rgba(34,197,94,.35)}
+.stat span{font-size:10px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.5px}
+.section{display:none;margin-top:16px}.section.active{display:block}
+.mini-card{border:1px solid var(--border2);border-radius:18px;background:var(--card2);margin-top:12px;overflow:hidden}
+.mini-head{padding:14px 16px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-weight:800;font-size:13px;color:var(--text)}
+.mini-body{display:none;padding:0 14px 16px 14px}.mini-body.open{display:block}
+.bh-field{width:100%;padding:12px;border:1.5px solid var(--border);border-radius:14px;margin-top:6px;background:var(--card3);color:var(--text);box-sizing:border-box}
+.bh-label{font-size:10px;font-weight:800;margin-top:14px;display:block;text-transform:uppercase;color:var(--muted)}
+.btn-white{width:100%;padding:13px;border-radius:12px;border:none;background:var(--text);color:var(--bg);font-weight:900;cursor:pointer;margin-top:14px}
+.btn-green{width:100%;padding:12px;border-radius:12px;border:none;background:#22c55e;color:#111;font-weight:900;cursor:pointer;margin-top:10px}
+.preview{width:80px;height:80px;border-radius:12px;object-fit:cover;border:2px solid var(--border);display:none;margin-top:10px}
+.hidden{display:none !important}.pill{font-size:10px;background:var(--card3);padding:6px 10px;border-radius:20px;border:1px solid var(--border);cursor:pointer;color:var(--text)}
+.order-tab{padding:8px 12px;border-radius:20px;font-size:11px;font-weight:800;border:1px solid var(--border);background:var(--card3);color:var(--text);cursor:pointer}.order-tab.active{background:var(--text);color:var(--bg)}
+.theme-btn{padding:8px 12px;border-radius:10px;border:1px solid var(--border);background:var(--card3);color:var(--text);cursor:pointer;font-size:12px;font-weight:800}
+.bottom-nav{position:fixed;bottom:16px;left:16px;right:16px;max-width:700px;margin:0 auto;background:var(--card);border:1px solid var(--border);border-radius:18px;padding:6px;display:flex;gap:4px;z-index:9999;box-shadow:0 10px 30px rgba(0,0,0,.5);backdrop-filter:blur(10px);box-sizing:border-box}
+.bnav-tab{flex:1;padding:10px 4px;border-radius:12px;font-size:10px;font-weight:800;cursor:pointer;white-space:nowrap;color:var(--muted);transition:.2s;text-align:center;display:grid;place-items:center;border:1px solid transparent;position:relative}
+.bnav-tab.active{background:var(--text);color:var(--bg)}
+.bnav-tab.has-items::after{content:'';position:absolute;top:4px;right:6px;width:8px;height:8px;background:#22c55e;border-radius:50%;border:2px solid var(--card);box-shadow:0 0 8px #22c55e}
+.jobs-hero{padding:10px 4px 14px 4px}
+.jobs-hero h2{margin:0;font-size:22px;font-weight:900;letter-spacing:-.5px}
+.jobs-hero p{margin:4px 0 0 0;color:var(--muted);font-size:11px}
+.job-grid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:12px}
+.job-card{background:var(--card);border:1px solid var(--border2);border-radius:20px;padding:0;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,.15)}
+.job-top{padding:12px 14px;display:flex;justify-content:space-between;align-items:center;background:var(--card3);border-bottom:1px solid var(--border2)}
+.job-body{padding:12px 14px}
+.badge{font-size:9px;padding:4px 8px;border-radius:20px;font-weight:800;border:1px solid var(--border)}
+.badge-ready{background:rgba(34,197,94,.15);color:#22c55e;border-color:rgba(34,197,94,.3)}
+.transport-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-top:8px}
+.t-box{border:1.5px solid var(--border);background:var(--card3);border-radius:12px;padding:10px 6px;text-align:center;cursor:pointer;transition:.2s}
+.t-box.active{border-color:#22c55e;background:rgba(34,197,94,.12);box-shadow:0 0 10px rgba(34,197,94,.25)}
+.t-icon{font-size:20px;display:block}.t-label{font-size:10px;font-weight:800;margin-top:4px}
+.icon-online{width:42px;height:42px;border-radius:12px;border:1px solid var(--border);background:var(--card3);display:grid;place-items:center;cursor:pointer;transition:.2s;font-size:18px}
+.icon-online.on{background:#22c55e;color:#111;border-color:#22c55e;box-shadow:0 0 15px rgba(34,197,94,.5)}
+.icon-online.off{background:var(--card3);color:#ef4444}
+.status-switch{min-width:100px;min-height:44px;padding:8px 12px;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--border);border-radius:999px;background:var(--card3);color:var(--text);font:800 12px/1 system-ui;cursor:pointer;touch-action:manipulation;transition:background .18s,border-color .18s,transform .18s}
+.status-switch:active{transform:scale(.97)}.status-switch.on{background:rgba(34,197,94,.14);border-color:rgba(34,197,94,.65);color:#22c55e}.status-switch.off{background:rgba(148,163,184,.08);border-color:var(--border);color:var(--muted)}
+.status-switch-dot{width:9px;height:9px;border-radius:50%;background:#94a3b8;box-shadow:0 0 0 3px rgba(148,163,184,.12)}.status-switch.on .status-switch-dot{background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.15)}
+@media(max-width:480px){.header-actions{gap:5px!important;flex-wrap:wrap;justify-content:flex-end}.status-switch{min-width:88px;min-height:44px;padding:7px 9px;font-size:11px}.theme-btn{padding:8px 9px!important}}
+.wallet-main{font-size:32px;font-weight:900;transition:.3s}
+.wallet-main.green{color:#22c55e;text-shadow:0 0 15px rgba(34,197,94,.4)}
+.hist-item{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:12px;margin-top:8px;font-size:12px;background:var(--card3);border:1px solid var(--border2)}
+.hist-earn{border-left:3px solid #22c55e}.hist-with{border-left:3px solid #eab308}
+.amt-earn{color:#22c55e;font-weight:900}.amt-with{color:#eab308;font-weight:900}
+.hist-badge{font-size:9px;padding:4px 8px;border-radius:20px;font-weight:800}
+.badge-earn{background:rgba(34,197,94,.15);color:#22c55e;border:1px solid rgba(34,197,94,.3)}
+.badge-with{background:rgba(234,179,8,.15);color:#eab308;border:1px solid rgba(234,179,8,.3)}
+.icon-actions{display:flex;gap:6px;align-items:center}
+.icon-btn{width:36px;height:36px;border-radius:50%;border:1px solid var(--border);display:grid;place-items:center;cursor:pointer;background:var(--card2);transition:.2s}
+.wa-real{background:#25D366 !important;border-color:#25D366 !important;box-shadow:0 2px 10px rgba(37,211,102,.35)}
+.wa-real svg{width:18px;height:18px;fill:#fff}
+#riderMap{width:100%;height:58vh;border-radius:18px;border:1px solid var(--border2);z-index:1}
+.map-overlay{position:absolute;top:12px;left:12px;right:12px;z-index:500;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center}
+.pulse{width:14px;height:14px;background:#22c55e;border-radius:50%;box-shadow:0 0 0 6px rgba(34,197,94,.3);animation:pulse 1.5s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(34,197,94,.6)}70%{box-shadow:0 0 0 10px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}}
+#brandHeader{position:sticky;top:0;z-index:9998;background:var(--card);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;justify-content:space-between;align-items:center;backdrop-filter:blur(12px)}
+.brand-left{font-weight:900;font-size:18px;letter-spacing:-.5px;display:flex;align-items:center;gap:6px}
+.brand-logo{background:#22c55e;color:#111;padding:2px 7px;border-radius:8px;font-size:14px}
+</style>
+</head>
+<body>
+<div id="brandHeader"><div class="brand-left"><span class="brand-logo">🛒</span> BuyEasy</div><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><div style="font-size:10px;color:var(--muted);font-weight:800">RIDER • DELIVER LOCAL</div><button onclick="switchDashboardRole('buyer','buyer-dashboard.html')" class="pill">🛍️ Buyer</button><button id="riderStoreSwitch" style="display:none" onclick="switchDashboardRole('store','store-dashboard.html')" class="pill">🏪 Store</button></div></div>
+
+<div class="dash">
+  <div id="topHeader" class="dash-header">
+    <div class="top-row">
+      <div style="display:flex;align-items:center;gap:12px">
+        <img id="avatarImg" style="width:48px;height:48px;border-radius:50%;object-fit:cover;display:none;border:2px solid var(--border)">
+        <div id="avatarLetter" style="width:48px;height:48px;border-radius:50%;background:var(--text);color:var(--bg);display:grid;place-items:center;font-weight:900">R</div>
+        <div><div style="font-weight:900" id="riderName">Rider</div><div style="font-size:11px;color:var(--muted)" id="userInfo"></div></div>
+      </div>
+      <div class="header-actions" style="display:flex;gap:8px;align-items:center">
+        <button id="onlineIcon" type="button" class="status-switch off" onclick="toggleOnline()" aria-pressed="false" aria-label="Rider is offline. Tap to go online"><span class="status-switch-dot" aria-hidden="true"></span><span id="onlineStateLabel">Offline</span></button>
+        <button onclick="toggleTheme()" id="themeBtn" class="theme-btn">🌙</button>
+        <button onclick="logout()" style="padding:8px 12px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text)">Logout</button>
+      </div>
+    </div>
+    <div class="stats-row">
+      <div class="stat"><span>Wallet Balance</span><b id="balanceTop">R0.00</b></div>
+      <div class="stat" style="flex:0.7"><span>Status</span><b id="onlineText" style="color:#ef4444">Offline</b><span id="jobCountTop">0 jobs</span></div>
+    </div>
+  </div>
+
+  <div id="jobs" class="section active">
+    <div class="jobs-hero"><h2>🏍️ Jobs</h2><p>Go Online (switch at the top). New orders from stores that approved you ring here.</p><input id="jobSearch" oninput="renderJobs()" placeholder="🔍 Search store, customer..." class="bh-field" style="margin-top:12px;padding:12px"></div>
+    <div class="mini-card" style="padding:14px;margin:12px 0"><div id="myStoresPanel"><p class="status">Loading your stores…</p></div></div>
+    <div id="jobsList" class="job-grid"></div>
+  </div>
+
+  <div id="map" class="section">
+    <div style="position:relative"><div id="riderMap"></div><div class="map-overlay"><div><div style="font-weight:900;font-size:12px" id="navStatus">📍 Your Location</div><div style="font-size:10px;color:var(--muted)" id="navDetail">Live tracking when online</div></div><div style="display:flex;gap:6px;align-items:center"><div class="pulse"></div><button onclick="centerToRider()" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card3);color:var(--text);font-size:10px;font-weight:800">◎ Center</button></div></div></div>
+    <div id="trackCard" class="mini-card hidden"><div class="mini-head">Active delivery</div><div class="mini-body open"><div id="trackInfo" style="font-size:12px"></div><div id="trackBtns" style="display:grid;gap:8px;margin-top:10px"></div></div></div>
+    <p id="trackEmpty" class="status" style="padding:12px">Accept a job to see your route here: you → store → customer.</p>
+  </div>
+
+  <div id="deliveries" class="section">
+    <div style="display:flex;gap:8px;margin-bottom:12px"><div class="order-tab active" onclick="switchDelTab('active',this)">Active</div><div class="order-tab" onclick="switchDelTab('history',this)">History</div></div>
+    <div class="mini-card"><div class="mini-head" onclick="toggleMini('delInner')">My Deliveries <span>⌄</span></div><div id="delInner" class="mini-body open"><div id="delList"></div></div></div>
+  </div>
+
+  <div id="money" class="section">
+    <div class="mini-card"><div class="mini-head" onclick="toggleMini('walletBody')">Wallet <span>⌄</span></div><div id="walletBody" class="mini-body open"><div style="font-size:11px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.5px">Wallet Balance</div><div id="wallet" class="wallet-main">R0.00</div><button onclick="withdraw()" class="btn-white">Withdraw</button></div></div>
+    <div class="mini-card"><div class="mini-head" onclick="toggleMini('todayBody')">🔒 Today Earned (Private) <span>⌄</span></div><div id="todayBody" class="mini-body"><div style="font-size:24px;font-weight:900" id="todayEarned">R0.00</div><div style="font-size:11px;color:var(--muted)">Resets at midnight • Hidden from public</div></div></div>
+    <div class="mini-card"><div class="mini-head" onclick="toggleMini('histBody')">History <span>⌄</span></div><div id="histBody" class="mini-body"><div style="display:flex;gap:8px"><button onclick="showHist('earn')" id="btnEarn" class="pill" style="background:var(--text);color:var(--bg)">🟢 Earnings</button><button onclick="showHist('with')" id="btnWith" class="pill">🟡 Withdrawals</button></div><div id="earnHist" style="margin-top:10px"></div><div id="withHist" class="hidden" style="margin-top:10px"></div></div></div>
+  </div>
+
+  <div id="settings" class="section">
+    <div class="mini-card"><div class="mini-head">🔔 Alerts</div><div class="mini-body open"><p class="status">Important alerts ring until you tap them. Allow notifications and tap once on the screen to turn sound on.</p><button class="btn-green" onclick="BuyEasyAlerts.test()">Test alert sound</button></div></div>
+    <div class="mini-card"><div class="mini-head" onclick="toggleMini('profileBody')">Rider Profile <span>⌄</span></div><div id="profileBody" class="mini-body"><label class="bh-label">Profile Picture</label><input id="r_pic" type="file" accept="image/*" class="bh-field" onchange="previewRiderPic(event)"><img id="r_pic_preview" class="preview"><label class="bh-label">Full Name</label><input id="r_name" class="bh-field"><label class="bh-label">Phone</label><input id="r_phone" class="bh-field"><label class="bh-label">Mode of Transport</label><div class="transport-grid"><div class="t-box" id="t-foot" onclick="selectTransport('foot')"><span class="t-icon">🚶</span><span class="t-label">Foot</span></div><div class="t-box" id="t-bicycle" onclick="selectTransport('bicycle')"><span class="t-icon">🚲</span><span class="t-label">Bicycle</span></div><div class="t-box" id="t-motorbike" onclick="selectTransport('motorbike')"><span class="t-icon">🏍️</span><span class="t-label">Motorbike</span></div><div class="t-box" id="t-car" onclick="selectTransport('car')"><span class="t-icon">🚗</span><span class="t-label">Car</span></div></div><label class="bh-label">ID Number</label><input id="r_id" class="bh-field"><button onclick="saveRider()" class="btn-white">Save Profile</button></div></div>
+  </div>
+</div>
+
+<div class="bottom-nav">
+  <div class="bnav-tab active" id="bnav-jobs" onclick="openTab('jobs',this)">🏍️ Jobs</div>
+  <div class="bnav-tab" id="bnav-map" onclick="openTab('map',this)">🗺️ Map</div>
+  <div class="bnav-tab" id="bnav-del" onclick="openTab('deliveries',this)">📦 Deliveries <span id="delCount"></span></div>
+  <div class="bnav-tab" onclick="openTab('money',this)">💰 Money</div>
+  <div class="bnav-tab" onclick="openTab('settings',this)">⚙️ Settings</div>
+</div>
+
+<script src="auth.js"></script>
+<script src="rider-supabase-orders.js"></script>
+<script>
+const RiderAuth = {
+  email: localStorage.getItem('bhv2_email') || localStorage.getItem('v2_email') || '',
+  role: localStorage.getItem('bhv2_role') || localStorage.getItem('v2_role') || '',
+  async check(){ const db=window.supabaseClient;if(!db){location.replace('index.html');return false;}try{const {data:s,error}=await db.auth.getSession();if(error)throw error;if(!s.session){location.replace('index.html');return false;}const {error:roleError}=await db.rpc('switch_dashboard_role',{p_role:'rider'});if(roleError)throw roleError;const {data:store}=await db.from('stores').select('id').eq('owner_id',s.session.user.id).eq('is_approved',true).maybeSingle();if(store)document.getElementById('riderStoreSwitch').style.display='inline-flex';return true;}catch(e){alert(e.message||'Your Rider access is not approved.');location.replace('router.html');return false;} }
+};
+RiderAuth.check();
+
+const escHtml=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function showDone(msg){
+  if(window.Utils && Utils.done){ Utils.done(msg); return; }
+  let o=document.getElementById('doneOverlay');if(!o){o=document.createElement('div');o.id='doneOverlay';o.innerHTML=`<div style="background:var(--card);border:1px solid var(--border);padding:20px 26px;border-radius:18px;display:flex;align-items:center;gap:14px;color:var(--text)"><div style="width:42px;height:42px;background:#22c55e;border-radius:50%;display:grid;place-items:center;font-weight:900;color:#111">✓</div><div><div style="font-weight:900">Done!</div><div id="doneText" style="font-size:12px;opacity:.8">Saved</div></div></div>`;o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;display:none;align-items:center;justify-content:center';document.body.appendChild(o);}document.getElementById('doneText').textContent=msg;o.style.display='flex';setTimeout(()=>o.style.display='none',1600);
+}
+function openTab(id,el){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.bnav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById(id).classList.add('active'); el.classList.add('active');
+  if(id==='jobs')renderJobs(); if(id==='deliveries')renderDeliveries();
+  if(id==='map'){initMap();setTimeout(()=>{ if(window.RiderTracking) RiderTracking.refresh(); },300);}
+}
+function toggleMini(id){ let el=document.getElementById(id); if(el) el.classList.toggle('open');}
+
+let email=RiderAuth.email; document.getElementById('userInfo').textContent=email;
+let riderPic=''; let isOnline=false; let selectedTransport='';
+
+
+function compressImage(file, maxSize=200, quality=0.7, cb){let r=new FileReader(); r.onload=e=>{let img=new Image(); img.onload=()=>{let canvas=document.createElement('canvas'); let scale=Math.min(maxSize/img.width, maxSize/img.height); canvas.width=img.width*scale; canvas.height=img.height*scale; let ctx=canvas.getContext('2d'); ctx.drawImage(img,0,0,canvas.width,canvas.height); cb(canvas.toDataURL('image/jpeg', quality));}; img.src=e.target.result;}; r.readAsDataURL(file);}
+function loadRider(){let p=JSON.parse(localStorage.getItem('v2_rider_'+email)||'{}'); document.getElementById('r_name').value=p.name||'';document.getElementById('r_phone').value=p.phone||'';document.getElementById('r_id').value=p.idNum||''; if(p.name)document.getElementById('riderName').textContent=p.name; if(p.pic){document.getElementById('r_pic_preview').src=p.pic;document.getElementById('r_pic_preview').style.display='block';document.getElementById('avatarImg').src=p.pic;document.getElementById('avatarImg').style.display='block';document.getElementById('avatarLetter').style.display='none';riderPic=p.pic;} else {document.getElementById('avatarImg').style.display='none';document.getElementById('avatarLetter').style.display='grid';} if(p.name)document.getElementById('avatarLetter').textContent=p.name[0].toUpperCase(); if(p.transport){selectTransport(p.transport,false);} isOnline=localStorage.getItem('v2_rider_online_'+email)==='true'; updateOnlineUI();}
+function previewRiderPic(e){let f=e.target.files[0]; if(!f) return; compressImage(f,200,0.7,data=>{riderPic=data; let img=document.getElementById('r_pic_preview'); img.src=data; img.style.display='block';});}
+function selectTransport(type, save=true){selectedTransport=type; document.querySelectorAll('.t-box').forEach(b=>b.classList.remove('active')); let el=document.getElementById('t-'+type); if(el) el.classList.add('active'); if(save){let old=JSON.parse(localStorage.getItem('v2_rider_'+email)||'{}'); old.transport=type; localStorage.setItem('v2_rider_'+email, JSON.stringify(old)); showDone('Transport: '+type);}}
+function saveRider(){let old=JSON.parse(localStorage.getItem('v2_rider_'+email)||'{}'); let data={name:document.getElementById('r_name').value.trim(),phone:document.getElementById('r_phone').value.trim(),idNum:document.getElementById('r_id').value.trim(),transport:selectedTransport||old.transport||'',pic:riderPic||old.pic||''}; if(!data.name) return alert('Enter full name'); if(!data.transport) return alert('Choose transport'); try{localStorage.setItem('v2_rider_'+email, JSON.stringify({...old,...data}));showDone('Rider saved: '+data.name);loadRider();}catch(err){let noPic={...old,...data,pic:''};localStorage.setItem('v2_rider_'+email, JSON.stringify(noPic));showDone('Saved');loadRider();}}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function initMap(){ if(window.RiderTracking) RiderTracking.init(); }
+function centerToRider(){ if(window.RiderTracking) RiderTracking.center(); }
+function closeMapRoute(){}
+function setDelTab(t){ curDelTab=t; document.querySelectorAll('#deliveries .order-tab').forEach((x,i)=>x.classList.toggle('active',(i===0)===(t==='active'))); if(typeof renderDeliveries==='function') renderDeliveries(); }
+function updateOnlineUI(){let icon=document.getElementById('onlineIcon');let label=document.getElementById('onlineStateLabel');let txt=document.getElementById('onlineText');if(!icon||!txt)return;icon.classList.toggle('on',isOnline);icon.classList.toggle('off',!isOnline);if(label)label.textContent=isOnline?'Online':'Offline';icon.setAttribute('aria-pressed',String(isOnline));icon.setAttribute('aria-label',isOnline?'Rider is online. Tap to go offline':'Rider is offline. Tap to go online');icon.title=isOnline?'Tap to go offline':'Tap to go online';txt.textContent=isOnline?'Online':'Offline';txt.style.color=isOnline?'#22c55e':'#ef4444';}
+function cleanPhone(p){if(!p) return '';let n=p.replace(/\D/g,'');if(n.startsWith('0')) n='27'+n.substring(1);return n;}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+let curDelTab='active';
+function switchDelTab(t,el){curDelTab=t;document.querySelectorAll('.order-tab').forEach(x=>x.classList.remove('active'));el.classList.add('active');renderDeliveries();}
+
+
+
+
+
+
+function showHist(t){let e1=document.getElementById('earnHist'); let e2=document.getElementById('withHist'); if(e1) e1.classList.toggle('hidden',t!=='earn'); if(e2) e2.classList.toggle('hidden',t!=='with'); let b1=document.getElementById('btnEarn'); let b2=document.getElementById('btnWith'); if(b1){b1.style.background=t==='earn'?'var(--text)':'var(--card3)';b1.style.color=t==='earn'?'var(--bg)':'var(--text';} if(b2){b2.style.background=t==='with'?'var(--text)':'var(--card3)';b2.style.color=t==='with'?'var(--bg)':'var(--text';}}
+
+function toggleTheme(){let isLight=document.body.classList.toggle('light');localStorage.setItem('v2_theme_rider_'+email, isLight?'light':'dark');let btn=document.getElementById('themeBtn'); if(btn) btn.textContent=isLight?'☀️':'🌙';}
+(function loadTheme(){let t=localStorage.getItem('v2_theme_rider_'+email)||localStorage.getItem('v2_theme_rider')||'dark';if(t==='light'){document.body.classList.add('light');let b=document.getElementById('themeBtn'); if(b) b.textContent='☀️';}})();
+async function logout(){ isOnline=false; try{ if(window.riderGoOffline) await riderGoOffline(); }catch(e){} localStorage.removeItem('bhv2_email'); localStorage.removeItem('bhv2_role'); localStorage.removeItem('v2_email'); localStorage.removeItem('v2_role'); location.href='index.html'; }
+
+loadRider();initMap();
+</script>
+
+<!-- APP DOWNLOAD BAR - VISIBLE TO ALL USERS -->
+<div id="appInstallBar">
+  <div class="left">
+    <div class="icon">📲</div>
+    <div class="txt">
+      <b>Download App</b>
+      <span>Install for faster access • No Play Store</span>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center">
+    <button class="btn" onclick="installAppNow()">INSTALL</button>
+    <div class="close" onclick="dismissInstallBar()">✕</div>
+  </div>
+</div>
+
+</body>
+</html>

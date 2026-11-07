@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BuyEasy — Buyer</title>
+<link rel="manifest" href="manifest.json"><meta name="theme-color" content="#22c55e"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="mobile.css">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+<script src="supabase.js"></script>
+<script src="net-status.js"></script>
+<script src="alerts.js"></script>
+<script src="ratings.js"></script>
+<script>try{for(let i=localStorage.length-1;i>=0;i--){let k=localStorage.key(i)||"";if(k==="v2_saved_cards"||k==="bhv2_cards"||k.startsWith("v2_cards_")||k.startsWith("v2_saved_cards_")||k.startsWith("v2_buyer_cards_")||k.startsWith("bhv2_cards_"))localStorage.removeItem(k);}}catch(e){console.warn("Could not clear old BUYEasy card cache",e);}</script>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="utils.js"></script>
+<script src="buyer/tracking.js"></script>
+<script src="orders-flow.js"></script>
+<style>
+
+/* APP DOWNLOAD BUTTON - GOD MODE */
+#appInstallBar{
+  position:fixed;bottom:0;left:0;right:0;
+  background:#101010;border-top:1px solid #222;
+  padding:12px 16px;z-index:99999;
+  display:none;align-items:center;justify-content:space-between;
+  box-shadow:0 -10px 30px rgba(0,0,0,.6);
+}
+#appInstallBar.show{display:flex}
+#appInstallBar .left{display:flex;align-items:center;gap:12px}
+#appInstallBar .icon{width:44px;height:44px;border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:22px}
+#appInstallBar .txt b{display:block;font-size:13px;color:#fff}
+#appInstallBar .txt span{font-size:10px;color:#888}
+#appInstallBar .btn{background:#fff;color:#000;padding:10px 20px;border-radius:20px;font-weight:900;font-size:12px;border:0;cursor:pointer}
+#appInstallBar .close{margin-left:12px;color:#555;font-size:18px;cursor:pointer}
+
+:root{--bg:#0f0f0f;--card:#1a1a1a;--card2:#151515;--card3:#111;--border:#2a2a2a;--border2:#222;--text:#fff;--muted:#888;--muted2:#777;--green:#22c55e}
+body{background:var(--bg);color:var(--text);transition:.3s;margin:0;padding-bottom:90px}
+body.light{--bg:#f5f5f5;--card:#fff;--card2:#fff;--card3:#f9f9f9;--border:#e5e5e5;--border2:#eee;--text:#111;--muted:#666;--muted2:#888}
+.dash{max-width:700px;margin:0 auto;padding:16px}
+.dash-header{background:var(--card);border:1px solid var(--border);padding:14px 16px;border-radius:18px;transition:.3s}
+.dash-header.hide{display:none}
+.top-row{display:flex;justify-content:space-between;align-items:center}
+.stats-row{display:flex;gap:10px;margin-top:14px}
+.stat{flex:1;background:var(--card3);border:1px solid var(--border2);border-radius:12px;padding:10px 12px}
+.stat b{font-size:16px;display:block;margin-top:2px;transition:.3s}
+.stat b.green{color:#22c55e;text-shadow:0 0 12px rgba(34,197,94,.35)}
+.stat span{font-size:10px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.5px}
+.section{display:none;margin-top:16px}.section.active{display:block}
+.mini-card{border:1px solid var(--border2);border-radius:18px;background:var(--card2);margin-top:12px;overflow:hidden}
+.mini-head{padding:14px 16px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-weight:800;font-size:13px;color:var(--text)}
+.mini-body{display:none;padding:0 14px 16px 14px}.mini-body.open{display:block}
+.bh-field{width:100%;padding:12px;border:1.5px solid var(--border);border-radius:14px;margin-top:6px;background:var(--card3);color:var(--text);box-sizing:border-box}
+.bh-label{font-size:10px;font-weight:800;margin-top:14px;display:block;text-transform:uppercase;color:var(--muted)}
+.btn-white{width:100%;padding:13px;border-radius:12px;border:none;background:var(--text);color:var(--bg);font-weight:900;cursor:pointer;margin-top:14px}
+.btn-green{width:100%;padding:12px;border-radius:12px;border:none;background:#22c55e;color:#111;font-weight:900;cursor:pointer;margin-top:10px}
+.preview{width:80px;height:80px;border-radius:12px;object-fit:cover;border:2px solid var(--border);display:none;margin-top:10px}
+.hidden{display:none !important}.pill{font-size:10px;background:var(--card3);padding:6px 10px;border-radius:20px;border:1px solid var(--border);cursor:pointer;color:var(--text)}
+.order-tab{padding:8px 12px;border-radius:20px;font-size:11px;font-weight:800;border:1px solid var(--border);background:var(--card3);color:var(--text);cursor:pointer}.order-tab.active{background:var(--text);color:var(--bg)}
+.qty-btn{width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--card3);color:var(--text);font-weight:900;cursor:pointer}
+.theme-btn{padding:8px 12px;border-radius:10px;border:1px solid var(--border);background:var(--card3);color:var(--text);cursor:pointer;font-size:12px;font-weight:800}
+.bottom-nav{position:fixed;bottom:16px;left:16px;right:16px;max-width:700px;margin:0 auto;background:var(--card);border:1px solid var(--border);border-radius:18px;padding:6px;display:flex;gap:4px;z-index:9999;box-shadow:0 10px 30px rgba(0,0,0,.5);backdrop-filter:blur(10px);box-sizing:border-box;overflow-x:auto}
+#brandHeader{
+  position:sticky;
+  top:0;
+  z-index:9998;
+  background:var(--card);
+  border-bottom:1px solid var(--border);
+  padding:10px 16px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  backdrop-filter:blur(12px);
+  transition:.3s
+}
+.brand-left{font-weight:900;font-size:18px;letter-spacing:-.5px;display:flex;align-items:center;gap:6px}
+.brand-logo{background:#22c55e;color:#111;padding:2px 7px;border-radius:8px;font-size:14px}
+.brand-right{font-size:10px;color:var(--muted);font-weight:800}
+body.light #brandHeader{background:#fff}
+.bnav-tab{flex:1;padding:11px 5px;border-radius:12px;font-size:10px;font-weight:800;cursor:pointer;white-space:nowrap;color:var(--muted);transition:.2s;border:1px solid transparent;text-align:center;display:grid;place-items:center}
+.bnav-tab.active{background:var(--text);color:var(--bg);box-shadow:0 4px 12px rgba(0,0,0,.2)}
+.bnav-tab.has-items{position:relative}
+.bnav-tab.has-items::after{content:'';position:absolute;top:-4px;right:2px;width:10px;height:10px;background:#22c55e;border-radius:50%;border:2px solid var(--card)}
+.shop-hero{padding:10px 4px 10px 4px}
+.shop-hero h2{margin:0;font-size:20px;font-weight:900;letter-spacing:-.5px}
+.shop-hero p{margin:3px 0 0 0;color:var(--muted);font-size:11px}
+
+/* SMALL PRODUCTS - NEW */
+.prod-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+@media(max-width:600px){.prod-grid{grid-template-columns:repeat(2,1fr)}}
+.prod-card{background:var(--card);border:1px solid var(--border2);border-radius:14px;padding:0;overflow:hidden;position:relative;transition:.2s;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.prod-card:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.2)}
+.prod-card img{width:100%;height:88px;object-fit:cover;background:var(--border2);display:block}
+.prod-info{padding:6px 8px 8px 8px}
+.prod-name{font-weight:800;font-size:11px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prod-meta{display:flex;align-items:center;gap:4px;margin-top:3px;font-size:9px;color:var(--muted2)}
+.dot{width:6px;height:6px;border-radius:50%;display:inline-block}
+.dot.online{background:#22c55e;box-shadow:0 0 6px rgba(34,197,94,.6)}
+.dot.offline{background:#ef4444}
+.prod-price{font-weight:900;font-size:11px;margin-top:3px;color:var(--text)}
+.prod-card.offline{filter:grayscale(100%);opacity:.55}
+.offline-overlay{position:absolute;inset:0;background:rgba(0,0,0,.55);border-radius:14px;display:grid;place-items:center;z-index:2}
+.offline-text{color:#fff;font-weight:900;font-size:10px;letter-spacing:.5px;background:#ef4444;padding:4px 8px;border-radius:12px;animation:fadePulse 1.5s infinite}
+@keyframes fadePulse{0%{opacity:.3}50%{opacity:1}100%{opacity:.3}}
+.add-btn{width:100%;margin-top:6px;padding:7px;border-radius:8px;border:none;background:var(--text);color:var(--bg);font-weight:800;cursor:pointer;font-size:10px}
+.wallet-main{font-size:32px;font-weight:900;transition:.3s}
+.wallet-main.green{color:#22c55e;text-shadow:0 0 15px rgba(34,197,94,.4)}
+.hist-item{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:12px;margin-top:8px;font-size:12px;background:var(--card3);border:1px solid var(--border2)}
+.hist-spent{border-left:3px solid #ef4444}
+.hist-topup{border-left:3px solid #22c55e}
+.amt-spent{color:#ef4444;font-weight:900}
+.amt-topup{color:#22c55e;font-weight:900}
+.hist-badge{font-size:9px;padding:4px 8px;border-radius:20px;font-weight:800}
+.badge-spent{background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3)}
+.badge-topup{background:rgba(34,197,94,.15);color:#22c55e;border:1px solid rgba(34,197,94,.3)}
+#buyerMap{width:100%;height:220px;border-radius:12px;margin-top:10px;border:1px solid var(--border2);z-index:1}
+.dist-pill{font-size:8px;background:rgba(34,197,94,.12);color:#22c55e;border:1px solid rgba(34,197,94,.25);padding:2px 5px;border-radius:999px;font-weight:800;margin-left:4px}
+.store-chips{display:flex;gap:6px;overflow-x:auto;margin-top:8px;padding-bottom:2px;scrollbar-width:none}
+.store-chips::-webkit-scrollbar{display:none}
+.chip{white-space:nowrap;padding:6px 10px;border-radius:999px;border:1px solid var(--border);background:var(--card3);font-size:9px;font-weight:800;cursor:pointer;flex-shrink:0}
+.chip.active{background:var(--text);color:var(--bg)}
+.pay-box{border:1px solid var(--border);border-radius:14px;padding:10px;background:var(--card3);margin-top:10px}
+.pay-opt{display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;border:1px solid var(--border);margin-top:8px;cursor:pointer;transition:.2s;font-size:12px;font-weight:700}
+.pay-opt.active{border-color:#22c55e;background:rgba(34,197,94,.12)}
+.fav-btn{position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.2);display:grid;place-items:center;cursor:pointer;z-index:3;font-size:11px;backdrop-filter:blur(6px)}
+.fav-btn.active{background:#fff;color:#ef4444}
+.store-actions{display:flex;gap:4px;margin-top:5px}
+.icon-btn{flex:1;padding:6px;border-radius:7px;border:1px solid var(--border);background:var(--card3);color:var(--text);font-size:9px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:3px}
+.icon-btn.wa{background:#25D366;color:#fff;border-color:#25D366}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:10000;display:none;align-items:flex-end;justify-content:center;padding:16px}
+.modal.open{display:flex}
+.modal-card{width:100%;max-width:700px;max-height:85vh;overflow:auto;background:var(--card);border:1px solid var(--border);border-radius:22px;padding:16px;animation:slideUp .25s}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+#storeMapView{width:100%;height:300px;border-radius:14px;border:1px solid var(--border2);margin-top:10px}
+.card-item{display:flex;justify-content:space-between;align-items:center;padding:10px;border:1px solid var(--border);border-radius:12px;margin-top:8px;background:var(--card3)}
+.fav-store-row{display:flex;align-items:center;justify-content:space-between;padding:9px 10px;background:var(--card3);border:1px solid var(--border2);border-radius:12px;margin-top:6px}
+.fav-store-left{display:flex;align-items:center;gap:8px}
+.fav-store-icon{width:28px;height:28px;border-radius:50%;background:var(--text);color:var(--bg);display:grid;place-items:center;font-weight:900;font-size:11px;flex-shrink:0}
+.fav-store-name{font-weight:800;font-size:11px;line-height:1.1}
+.fav-store-sub{font-size:9px;color:var(--muted2);margin-top:1px}
+.fav-store-actions{display:flex;gap:4px}
+.fav-store-actions .pill{padding:4px 8px;font-size:9px}
+#favProdsList{grid-template-columns:repeat(3,1fr);gap:8px}
+@media(max-width:600px){#favProdsList{grid-template-columns:repeat(2,1fr)}}
+.fav-prod-card{background:var(--card3);border:1px solid var(--border2);border-radius:12px;overflow:hidden;position:relative;transition:.2s}
+.fav-prod-card img{width:100%;height:70px;object-fit:cover;background:var(--border2);display:block}
+.fav-prod-info{padding:6px 7px 7px 7px}
+.fav-prod-name{font-weight:800;font-size:10px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fav-prod-meta{font-size:8px;color:var(--muted2);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fav-prod-price{font-weight:900;font-size:11px;margin-top:2px}
+.fav-prod-actions{display:flex;gap:4px;margin-top:5px}
+.fav-prod-actions .add-btn{padding:5px;font-size:9px;margin-top:0;border-radius:7px;flex:1}
+.fav-remove{position:absolute;top:5px;right:5px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,.65);border:1px solid rgba(255,255,255,.2);display:grid;place-items:center;font-size:9px;cursor:pointer;color:#fff;z-index:2}
+/* NEW NEAREST + POPULAR */
+.nearest-bar{display:flex;gap:6px;overflow-x:auto;margin-top:10px;padding-bottom:4px;scrollbar-width:none}
+.nearest-bar::-webkit-scrollbar{display:none}
+.nearest-store{flex-shrink:0;min-width:92px;padding:8px 10px;border-radius:12px;border:1px solid var(--border2);background:var(--card3);cursor:pointer;text-align:center;transition:.2s}
+.nearest-store.active{border-color:#22c55e;background:rgba(34,197,94,.12)}
+.nearest-store b{font-size:11px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nearest-store span{font-size:9px;color:var(--muted2);display:block;margin-top:2px}
+.shop-section-title{display:flex;justify-content:space-between;align-items:center;margin-top:16px;margin-bottom:6px}
+.shop-section-title h3{margin:0;font-size:13px;font-weight:900}
+.shop-section-title button{font-size:9px;padding:5px 9px;border-radius:999px;border:1px solid var(--border);background:var(--card3);color:var(--text);font-weight:800;cursor:pointer}
+.popular-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+@media(max-width:600px){.popular-grid{grid-template-columns:repeat(2,1fr)}}
+.all-stores-list{max-height:60vh;overflow:auto;margin-top:10px}
+.all-store-row{display:flex;align-items:center;justify-content:space-between;padding:10px;border:1px solid var(--border2);border-radius:12px;background:var(--card3);margin-top:6px}
+.prod-thumb-wrap{position:relative;width:52px;height:52px;min-width:52px;border-radius:10px;overflow:hidden;background:var(--border2);cursor:pointer}
+.prod-thumb-wrap img,.prod-thumb-wrap video{width:100%;height:100%;object-fit:cover}
+.prod-media-badge{position:absolute;top:3px;right:3px;background:rgba(0,0,0,.75);color:#fff;font-size:8px;padding:2px 6px;border-radius:20px;font-weight:800;border:1px solid rgba(255,255,255,.2)}
+</style>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+
+</head>
+<body>
+<!-- BRAND HEADER - ALWAYS VISIBLE -->
+<div id="brandHeader">
+  <div class="brand-left"><span class="brand-logo">🛒</span> BuyEasy</div>
+  <div style="display:flex;align-items:center;gap:10px"><div class="brand-right">BUYER • LOCAL DELIVERY</div><span id="dashboardSwitches" style="display:flex;gap:6px;flex-wrap:wrap"></span></div>
+</div>
+
+<div class="dash">
+  <div id="topHeader" class="dash-header">
+    <div class="top-row">
+      <div style="display:flex;align-items:center;gap:12px">
+        <img id="avatarImg" style="width:48px;height:48px;border-radius:50%;object-fit:cover;display:none;border:2px solid var(--border)">
+        <div id="avatarLetter" style="width:48px;height:48px;border-radius:50%;background:var(--text);color:var(--bg);display:grid;place-items:center;font-weight:900">B</div>
+        <div><div style="font-weight:900" id="buyerName">Buyer</div><div style="font-size:11px;color:var(--muted)" id="userInfo"></div></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="toggleTheme()" id="themeBtn" class="theme-btn">🌙</button>
+        <button onclick="logout()" style="padding:8px 12px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text)">Logout</button>
+      </div>
+    </div>
+    <div class="stats-row">
+      <div class="stat"><span>Wallet Balance</span><b id="balanceTop">R0.00</b><span id="cartCountTop">0 items in cart • Available</span></div>
+    </div>
+  </div>
+
+  <div id="shop" class="section active">
+    <div class="shop-hero">
+      <h2>🛒 Shop</h2>
+      <p id="shopSub">Fresh from local stores near you</p>
+      <input id="shopSearch" oninput="renderShop()" placeholder="🔍 Search bread, amasi, shop..." class="bh-field" style="margin-top:10px;padding:12px;font-size:12px">
+      <!-- NEAREST ONLINE FIRST LINE -->
+      <div class="shop-section-title" style="margin-top:12px"><h3>📍 Nearest Online Stores</h3><button onclick="openAllStores()">🏪 All Stores</button></div>
+      <div id="nearestStores" class="nearest-bar"></div>
+      <!-- POPULAR -->
+      <div class="shop-section-title"><h3>🔥 Popular Products</h3><span style="font-size:10px;color:var(--muted2)" id="popularSub"></span></div>
+      <div id="popularList" class="popular-grid"></div>
+      <!-- FILTERS -->
+      <div id="storeChips" class="store-chips"></div>
+    </div>
+    <div class="shop-section-title"><h3 id="allProductsTitle">🛒 All Products</h3></div>
+    <div id="shopList" class="prod-grid"></div>
+  </div>
+
+  <div id="cart" class="section">
+    <div class="mini-card"><div class="mini-head" onclick="toggleMini('cartInner')">My Cart <span id="cartBadge" class="pill">0</span></div>
+    <div id="cartInner" class="mini-body open">
+      <div id="cartList"></div>
+      <div id="cartTotal" style="font-weight:900;margin-top:12px"></div>
+      <div id="deliveryFeePreview" style="font-size:12px;color:var(--muted);margin-top:8px;background:var(--card3);border:1px solid var(--border2);border-radius:12px;padding:10px"></div>
+      <div class="pay-box">
+        <div style="font-weight:900;font-size:12px">💳 Payment Method</div>
+        <div id="payWallet" class="pay-opt active" onclick="setPay('wallet')"><span>👛</span><div style="flex:1"><b>Wallet</b><div style="font-size:10px;color:var(--muted)" id="walletPayInfo">R0.00</div></div></div>
+        <div id="payCard" class="pay-opt" onclick="setPay('card')"><span>💳</span><div style="flex:1"><b>Card</b><div style="font-size:10px;color:var(--muted)" id="cardPayInfo">No card saved • Click to add</div></div></div>
+        <div id="payCod" class="pay-opt" onclick="setPay('cod')"><span>💵</span><div style="flex:1"><b>Cash on Delivery</b><div style="font-size:10px;color:var(--muted)">Pay rider in cash</div></div></div>
+      </div>
+      <button onclick="checkout()" class="btn-white">Checkout — Pay Now</button>
+    </div></div>
+  </div>
+
+  <div id="orders" class="section">
+    <input id="orderSearch" oninput="renderOrders()" placeholder="Search orders..." class="bh-field" style="margin-bottom:12px">
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <div class="order-tab active" onclick="switchOrderTab('active',this)">Active</div><div class="order-tab" onclick="switchOrderTab('history',this)">History</div>
+    </div>
+    <div class="mini-card"><div class="mini-head" onclick="toggleMini('ordersInner')">My Orders <span>⌄</span></div><div id="ordersInner" class="mini-body open"><div id="ordersList"></div></div></div>
+  </div>
+
+  <div id="favs" class="section">
+    <div class="shop-hero"><h2>❤️ Favourites</h2><p>Your saved stores & products</p></div>
+    <div class="mini-card"><div class="mini-head">🏪 Fav Stores</div><div class="mini-body open"><div id="favStoresList"></div></div></div>
+    <div class="mini-card"><div class="mini-head">🛒 Fav Products</div><div class="mini-body open"><div id="favProdsList" class="prod-grid"></div></div></div>
+  </div>
+
+  <div id="money" class="section">
+    <div class="mini-card"><div class="mini-head" onclick="toggleMini('walletBody')">Wallet <span>⌄</span></div><div id="walletBody" class="mini-body open"><div id="wallet" class="wallet-main">R0.00</div><button onclick="topUp()" class="btn-white">Add Money</button></div></div>
+    <div class="mini-card"><div class="mini-head" onclick="toggleMini('cardsBody')">💳 Saved Cards <span>⌄</span></div><div id="cardsBody" class="mini-body"><div id="savedCardsList"></div><button onclick="openCardModal()" class="btn-white" style="margin-top:10px">+ Add New Card</button></div></div>
+    <div class="mini-card"><div class="mini-head" onclick="toggleMini('spentBody')">🔒 Total Spent <span>⌄</span></div><div id="spentBody" class="mini-body"><div style="font-size:24px;font-weight:900" id="spentToday">R0.00</div></div></div>
+    <div class="mini-card"><div class="mini-head" onclick="toggleMini('historyBody')">History <span>⌄</span></div><div id="historyBody" class="mini-body"><div style="display:flex;gap:8px"><button onclick="showHist('earn')" id="btnEarn" class="pill" style="background:var(--text);color:var(--bg)">🔴 Spent</button><button onclick="showHist('with')" id="btnWith" class="pill">🟢 Top-ups</button></div><div id="earnHist" style="margin-top:10px"></div><div id="withHist" class="hidden" style="margin-top:10px"></div></div></div>
+  </div>
+
+  <div id="settings" class="section">
+    <div class="mini-card"><div class="mini-head" onclick="toggleMini('profileBody')">Buyer Profile (Tap to edit) <span>⌄</span></div><div id="profileBody" class="mini-body">
+      <label class="bh-label">Profile Picture</label><input id="b_pic" type="file" accept="image/*" class="bh-field" onchange="previewBuyerPic(event)"><img id="b_pic_preview" class="preview">
+      <label class="bh-label">Full Name</label><input id="b_name" class="bh-field"><label class="bh-label">Phone</label><input id="b_phone" class="bh-field"><label class="bh-label">Delivery Address</label><input id="b_addr" class="bh-field">
+      <div style="margin-top:14px;padding:12px;border-radius:14px;background:var(--card3);border:1px solid #22c55e">
+        <div style="font-weight:900;font-size:12px">📍 My Delivery Location (REQUIRED)</div>
+        <div id="buyerMap"></div>
+        <div style="display:flex;gap:8px"><div style="flex:1"><label class="bh-label">Latitude</label><input id="b_lat" class="bh-field"></div><div style="flex:1"><label class="bh-label">Longitude</label><input id="b_lng" class="bh-field"></div></div>
+        <button onclick="getBuyerLocation()" style="width:100%;padding:12px;border-radius:12px;border:none;background:#22c55e;color:#111;font-weight:900;cursor:pointer;margin-top:10px">📍 Use My Current Location</button>
+        <div id="locStatus" style="font-size:11px;color:#22c55e;margin-top:8px;display:none;font-weight:800"></div>
+      </div>
+      <button onclick="saveBuyer()" class="btn-white">Save Profile with GPS</button>
+    </div></div>
+
+    <!-- APPLY TO BECOME A STORE -->
+    <div class="mini-card">
+      <div class="mini-head" onclick="toggleMini('storeApplicationBody')">🏪 Apply to Become a Store <span>⌄</span></div>
+      <div id="storeApplicationBody" class="mini-body">
+        <p style="font-size:12px;color:var(--muted);line-height:1.5;margin:4px 0 12px">Want to sell products on BUYEasy? Submit your store details. Your application must be approved by an administrator before you can access the store dashboard.</p>
+        <label class="bh-label" for="apply_store_name">Store Name</label>
+        <input id="apply_store_name" class="bh-field" type="text" maxlength="120" placeholder="Enter your store name" autocomplete="organization">
+        <label class="bh-label" for="apply_owner_name">Owner's Full Name</label>
+        <input id="apply_owner_name" class="bh-field" type="text" maxlength="120" placeholder="Enter your full name" autocomplete="name">
+        <label class="bh-label" for="apply_store_phone">Phone Number</label>
+        <input id="apply_store_phone" class="bh-field" type="tel" maxlength="30" placeholder="e.g. 071 234 5678" autocomplete="tel">
+        <label class="bh-label" for="apply_store_address">Store Address</label>
+        <textarea id="apply_store_address" class="bh-field" maxlength="500" rows="3" placeholder="Enter your complete store address" autocomplete="street-address"></textarea>
+        <button id="submitStoreApplicationBtn" onclick="submitStoreApplication()" class="btn-white">Submit Store Application</button>
+        <div id="storeApplicationStatus" role="status" aria-live="polite" style="font-size:12px;line-height:1.5;margin-top:12px"></div>
+      </div>
+    </div>
+    <div class="mini-card" style="margin-top:12px"><div class="mini-head">🏍️ Apply to become a Rider</div><div class="mini-body open">
+      <p style="font-size:12px;color:var(--muted);line-height:1.5">Submit your details for a separate Admin review. You can use the Rider dashboard after approval.</p>
+      <label class="bh-label" for="rider_apply_name">Full Name</label><input id="rider_apply_name" class="bh-field" maxlength="120" autocomplete="name" placeholder="Your full name">
+      <label class="bh-label" for="rider_apply_phone">Phone</label><input id="rider_apply_phone" class="bh-field" type="tel" maxlength="30" autocomplete="tel" placeholder="Your phone number">
+      <label class="bh-label" for="rider_apply_transport">Transport</label><select id="rider_apply_transport" class="bh-field"><option value="bicycle">Bicycle</option><option value="motorcycle">Motorcycle</option><option value="car">Car</option></select>
+      <button id="submitRiderApplicationBtn" onclick="submitRiderApplication()" class="btn-white">Submit Rider Application</button><div id="riderApplicationStatus" role="status" aria-live="polite" style="font-size:12px;line-height:1.5;margin-top:12px"></div>
+    </div></div>
+  </div>
+</div>
+
+<div class="bottom-nav">
+  <div class="bnav-tab active" id="bnav-shop" onclick="openTab('shop',this)">🛒 Shop</div>
+  <div class="bnav-tab" id="bnav-cart" onclick="openTab('cart',this)">🧺 Cart <span id="cartTopCount2"></span></div>
+  <div class="bnav-tab" onclick="openTab('orders',this)">📦 Orders</div>
+  <div class="bnav-tab" onclick="openTab('favs',this)">❤️ Favs</div>
+  <div class="bnav-tab" onclick="openTab('money',this)">💰 Money</div>
+  <div class="bnav-tab" onclick="openTab('settings',this)">⚙️ Settings</div>
+</div>
+
+<div id="storeModal" class="modal" onclick="if(event.target.id==='storeModal') closeStoreModal()">
+  <div class="modal-card">
+    <div style="display:flex;justify-content:space-between;align-items:center"><h3 id="storeModalName" style="margin:0;font-weight:900">Store</h3><button onclick="closeStoreModal()" style="background:var(--card3);border:1px solid var(--border);border-radius:10px;padding:6px 10px;color:var(--text)">✕</button></div>
+    <div id="storeModalInfo" style="font-size:12px;color:var(--muted);margin-top:6px"></div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="icon-btn wa" onclick="openWa()">💬 WhatsApp</button>
+      <button class="icon-btn" onclick="openStoreMapFromModal()">📍 Live Map</button>
+      <button id="storeModalFav" class="icon-btn" onclick="toggleFavStoreModal()">❤️ Fav</button>
+    </div>
+    <div style="margin-top:14px;font-weight:900;font-size:13px">All Products</div>
+    <div id="storeModalProds" class="prod-grid" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<div id="mapModal" class="modal" onclick="if(event.target.id==='mapModal') closeMapModal()">
+  <div class="modal-card">
+    <div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;font-weight:900">📍 Live Store Location</h3><button onclick="closeMapModal()" style="background:var(--card3);border:1px solid var(--border);border-radius:10px;padding:6px 10px;color:var(--text)">✕</button></div>
+    <div id="mapModalInfo" style="font-size:11px;color:var(--muted);margin-top:6px"></div>
+    <div id="storeMapView"></div>
+  </div>
+</div>
+
+<div id="cardModal" class="modal" onclick="if(event.target.id==='cardModal') closeCardModal()">
+  <div class="modal-card">
+    <div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;font-weight:900">💳 Add / Use Card</h3><button onclick="closeCardModal()" style="background:var(--card3);border:1px solid var(--border);border-radius:10px;padding:6px 10px;color:var(--text)">✕</button></div>
+    <div id="cardListInModal" style="margin-top:10px"></div>
+    <div style="border-top:1px solid var(--border2);margin-top:12px;padding-top:12px">
+      <label class="bh-label">Card Number</label><input id="c_num" class="bh-field" placeholder="4242 4242 4242 4242" maxlength="19" oninput="formatCard()">
+      <div style="display:flex;gap:8px"><div style="flex:1"><label class="bh-label">Expiry MM/YY</label><input id="c_exp" class="bh-field" placeholder="12/28"></div><div style="flex:1"><label class="bh-label">CVV</label><input id="c_cvv" class="bh-field" placeholder="123" maxlength="4"></div></div>
+      <label class="bh-label">Cardholder Name</label><input id="c_name" class="bh-field" placeholder="John Doe">
+      <button onclick="saveCardFromModal()" class="btn-white">Save Card & Pay</button>
+      <button onclick="payWithEnteredCard()" class="btn-green">Pay Without Saving</button>
+    </div>
+  </div>
+</div>
+
+<div id="allStoresModal" class="modal" onclick="if(event.target.id==='allStoresModal') closeAllStores()">
+  <div class="modal-card">
+    <div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;font-weight:900">🏪 All Stores</h3><button onclick="closeAllStores()" style="background:var(--card3);border:1px solid var(--border);border-radius:10px;padding:6px 10px;color:var(--text)">✕</button></div>
+    <div id="allStoresList" class="all-stores-list"></div>
+  </div>
+</div>
+
+<!-- PRODUCT GALLERY MODAL - BUYER VIEW ALL IMAGES -->
+<div id="galleryModal" style="position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:99999;display:none;flex-direction:column">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid #222">
+    <div style="color:#fff;font-weight:900" id="galleryTitle">Product</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span id="galleryCount" style="color:#888;font-size:11px;padding:5px 10px;border:1px solid #333;border-radius:20px">1 / 1</span>
+      <button onclick="closeGallery()" style="width:36px;height:36px;border-radius:50%;border:1px solid #333;background:#111;color:#fff;font-weight:900;cursor:pointer">✕</button>
+    </div>
+  </div>
+  <div style="flex:1;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden">
+    <button onclick="prevMedia()" style="position:absolute;left:10px;z-index:2;width:44px;height:44px;border-radius:50%;border:1px solid #333;background:rgba(0,0,0,.6);color:#fff;font-size:20px;cursor:pointer">‹</button>
+    <div id="galleryMain" style="width:100%;height:100%;display:grid;place-items:center;padding:16px;box-sizing:border-box"></div>
+    <button onclick="nextMedia()" style="position:absolute;right:10px;z-index:2;width:44px;height:44px;border-radius:50%;border:1px solid #333;background:rgba(0,0,0,.6);color:#fff;font-size:20px;cursor:pointer">›</button>
+  </div>
+  <div id="galleryThumbs" style="display:flex;gap:8px;padding:12px 16px;overflow-x:auto;border-top:1px solid #222;background:#0a0a0a"></div>
+</div>
+
+<script src="auth.js"></script>
+<script>
+const BuyerAuth = { email: localStorage.getItem('bhv2_email') || localStorage.getItem('v2_email') || '', role: localStorage.getItem('bhv2_role') || '', check(){ if(!this.email || !['buyer','store'].includes(this.role)){ location.href='router.html'; return false; } return true; } };
+if(!BuyerAuth.check()){}
+let email = BuyerAuth.email;
+document.getElementById('userInfo').textContent = email;
+
+function showDone(msg){ if(window.Utils && Utils.done){ Utils.done(msg); return; } let o=document.getElementById('doneOverlay');if(!o){o=document.createElement('div');o.id='doneOverlay';o.innerHTML=`<div style="background:var(--card);border:1px solid var(--border);padding:20px 26px;border-radius:18px;display:flex;align-items:center;gap:14px;color:var(--text)"><div style="width:42px;height:42px;background:#22c55e;border-radius:50%;display:grid;place-items:center;font-weight:900;color:#111">✓</div><div><div style="font-weight:900">Done!</div><div id="doneText" style="font-size:12px;opacity:.8">Saved</div></div></div>`;o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;display:none;align-items:center;justify-content:center';document.body.appendChild(o);}document.getElementById('doneText').textContent=msg;o.style.display='flex';setTimeout(()=>o.style.display='none',1600);}
+function openTab(id,el){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.bnav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById(id).classList.add('active'); el.classList.add('active');
+  if(id==='settings'){ setTimeout(()=>initBuyerMap(),300); }
+  if(id==='cart'){ updateDeliveryPreview(); }
+  if(id==='favs'){ renderFavs(); }
+  if(id==='money'){ renderSavedCards(); }
+}
+function toggleMini(id){let el=document.getElementById(id); if(el) el.classList.toggle('open'); if(id==='profileBody'){ setTimeout(()=>initBuyerMap(),300); }}
+
+let buyerPic='', globalProducts=[], buyerMap, buyerMarker, buyerLatLng=null, selectedStore='all', selectedPay='wallet', currentStoreModal=null, storeMapViewMap=null;
+let selectedCardId=null;
+
+function safeGetCart(){ try{ return JSON.parse(localStorage.getItem('v2_cart_'+email)||'[]'); }catch(e){ localStorage.removeItem('v2_cart_'+email); return []; } }
+function compressImage(file, maxSize=200, quality=0.7, cb){let r=new FileReader(); r.onload=e=>{let img=new Image(); img.onload=()=>{let canvas=document.createElement('canvas'); let scale=Math.min(maxSize/img.width, maxSize/img.height); canvas.width=img.width*scale; canvas.height=img.height*scale; let ctx=canvas.getContext('2d'); ctx.drawImage(img,0,0,canvas.width,canvas.height); cb(canvas.toDataURL('image/jpeg', quality));}; img.src=e.target.result;}; r.readAsDataURL(file);}
+function haversine(lat1,lon1,lat2,lon2){ const R=6371; const dLat=(lat2-lat1)*Math.PI/180; const dLon=(lon2-lon1)*Math.PI/180; const a=Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2; return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)); }
+
+function initBuyerMap(){
+  if(buyerMap){ setTimeout(()=>{ try{ buyerMap.invalidateSize(); }catch{} },200); return; }
+  let mapEl=document.getElementById('buyerMap'); if(!mapEl) return;
+  let lat=parseFloat(document.getElementById('b_lat').value)||-29.8587; let lng=parseFloat(document.getElementById('b_lng').value)||31.0218;
+  buyerMap=L.map('buyerMap',{zoomControl:false}).setView([lat,lng],15);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM'}).addTo(buyerMap);
+  buyerMarker=L.marker([lat,lng],{draggable:true}).addTo(buyerMap);
+  buyerMarker.on('dragend',()=>{ let ll=buyerMarker.getLatLng(); document.getElementById('b_lat').value=ll.lat.toFixed(6); document.getElementById('b_lng').value=ll.lng.toFixed(6); buyerLatLng=[ll.lat,ll.lng]; let s=document.getElementById('locStatus'); s.style.display='block'; s.textContent=`✓ Pin saved`; renderShop(); });
+  buyerMap.on('click',(e)=>{ buyerMarker.setLatLng(e.latlng); document.getElementById('b_lat').value=e.latlng.lat.toFixed(6); document.getElementById('b_lng').value=e.latlng.lng.toFixed(6); buyerLatLng=[e.latlng.lat,e.latlng.lng]; let s=document.getElementById('locStatus'); s.style.display='block'; s.textContent=`✓ Pin saved`; renderShop(); });
+  setTimeout(()=>{ try{ buyerMap.invalidateSize(); }catch{} },300);
+}
+function getBuyerLocation(){
+  let status=document.getElementById('locStatus'); status.style.display='block';
+  if(!navigator.geolocation){ status.innerHTML='⚠️ Tap map'; status.style.color='#eab308'; initBuyerMap(); return; }
+  status.textContent='📡 Getting GPS...';
+  navigator.geolocation.getCurrentPosition(pos=>{
+    let lat=pos.coords.latitude, lng=pos.coords.longitude;
+    document.getElementById('b_lat').value=lat.toFixed(6); document.getElementById('b_lng').value=lng.toFixed(6); buyerLatLng=[lat,lng];
+    status.textContent=`✓ GPS: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    if(buyerMap){ buyerMarker.setLatLng([lat,lng]); buyerMap.setView([lat,lng],16); } else { initBuyerMap(); }
+    renderShop();
+  }, err=>{ status.textContent='❌ '+err.message; initBuyerMap(); }, {enableHighAccuracy:true, timeout:10000});
+}
+function loadBuyer(){
+ let p=JSON.parse(localStorage.getItem('v2_buyer_'+email)||'{}');
+ let p2=JSON.parse(localStorage.getItem('v2_buyer_profile_'+email)||'{}');
+ let merged={...p2,...p};
+ document.getElementById('b_name').value=merged.name||'';document.getElementById('b_phone').value=merged.phone||'';document.getElementById('b_addr').value=merged.addr||'';
+ document.getElementById('b_lat').value=merged.lat||''; document.getElementById('b_lng').value=merged.lng||'';
+ if(merged.lat && merged.lng){ buyerLatLng=[parseFloat(merged.lat), parseFloat(merged.lng)]; let s=document.getElementById('locStatus'); s.style.display='block'; s.textContent=`✓ Saved GPS`; }
+ if(merged.name)document.getElementById('buyerName').textContent=merged.name;
+ if(merged.pic){document.getElementById('b_pic_preview').src=merged.pic;document.getElementById('b_pic_preview').style.display='block';document.getElementById('avatarImg').src=merged.pic;document.getElementById('avatarImg').style.display='block';document.getElementById('avatarLetter').style.display='none';buyerPic=merged.pic;}
+ else {document.getElementById('avatarImg').style.display='none';document.getElementById('avatarLetter').style.display='grid'; if(merged.name) document.getElementById('avatarLetter').textContent=merged.name[0].toUpperCase();}
+ setTimeout(()=>initBuyerMap(),800);
+ document.getElementById('profileBody').classList.remove('open');
+}
+function previewBuyerPic(e){ let f=e.target.files[0]; if(!f) return; compressImage(f, 200, 0.7, (data)=>{ buyerPic=data; let img=document.getElementById('b_pic_preview'); img.src=data; img.style.display='block'; }); }
+function saveBuyer(){
+  let old=JSON.parse(localStorage.getItem('v2_buyer_'+email)||'{}');
+  let old2=JSON.parse(localStorage.getItem('v2_buyer_profile_'+email)||'{}');
+  let data={name:document.getElementById('b_name').value.trim(),phone:document.getElementById('b_phone').value.trim(),addr:document.getElementById('b_addr').value.trim(),lat:document.getElementById('b_lat').value.trim(),lng:document.getElementById('b_lng').value.trim(),pic:buyerPic||old.pic||old2.pic||''};
+  if(!data.name) return alert('Enter name'); if(!data.phone || !data.addr) return alert('Phone + Address required'); if(!data.lat || !data.lng) return alert('Set GPS');
+  try{
+    localStorage.setItem('v2_buyer_'+email, JSON.stringify({...old,...data}));
+    localStorage.setItem('v2_buyer_profile_'+email, JSON.stringify({...old2,...data}));
+    if(data.lat && data.lng) buyerLatLng=[parseFloat(data.lat), parseFloat(data.lng)];
+    showDone('Buyer saved'); loadBuyer(); renderShop();
+  } catch(err){ let noPic={...old,...data,pic:''}; localStorage.setItem('v2_buyer_'+email, JSON.stringify(noPic)); localStorage.setItem('v2_buyer_profile_'+email, JSON.stringify(noPic)); showDone('Saved without pic'); loadBuyer(); }
+}
+
+function isStoreOnline(storeEmail){return localStorage.getItem('v2_store_online_'+storeEmail)==='true';}
+function getAllProducts(){
+ let all=[]; for(let i=0;i<localStorage.length;i++){let k=localStorage.key(i); if(k.startsWith('v2_products_')){let storeEmail=k.replace('v2_products_','');let profile={}; try{ profile=JSON.parse(localStorage.getItem('v2_profile_'+storeEmail)||'{}'); }catch{} let prods=[]; try{ prods=JSON.parse(localStorage.getItem(k)||'[]'); }catch{} prods.forEach(p=>all.push({...p,storeEmail,storeName:profile.storeName||storeEmail.split('@')[0],storePhone:profile.storePhone||profile.phone||'',storeLat:profile.storeLat?parseFloat(profile.storeLat):null,storeLng:profile.storeLng?parseFloat(profile.storeLng):null,storeAddr:profile.storeAddress||'',online:isStoreOnline(storeEmail)}));}} return all;
+}
+function getProductImage(id,storeEmail){ let prod=globalProducts.find(p=>String(p.id)===String(id) && p.storeEmail===storeEmail); return prod ? prod.img : ''; }
+
+function getFavStores(){ try{ return JSON.parse(localStorage.getItem('v2_fav_stores_'+email)||'[]'); }catch{ return []; } }
+function getFavProds(){ try{ return JSON.parse(localStorage.getItem('v2_fav_prods_'+email)||'[]'); }catch{ return []; } }
+function isFavStore(em){ return getFavStores().includes(em); }
+function isFavProd(id, storeEm){ return getFavProds().some(f=>String(f.id)===String(id) && f.storeEmail===storeEm); }
+function toggleFavStore(em){
+  let list=getFavStores(); if(list.includes(em)) list=list.filter(x=>x!==em); else list.push(em);
+  localStorage.setItem('v2_fav_stores_'+email, JSON.stringify(list)); renderShop(); renderFavs(); if(currentStoreModal && currentStoreModal.email===em) updateFavBtn();
+  showDone(list.includes(em)?'Store favourited ❤️':'Removed');
+}
+function toggleFavProd(id, storeEm){
+  let list=getFavProds(); let idx=list.findIndex(f=>String(f.id)===String(id) && f.storeEmail===storeEm);
+  if(idx>=0) list.splice(idx,1); else list.push({id:String(id), storeEmail:storeEm});
+  localStorage.setItem('v2_fav_prods_'+email, JSON.stringify(list)); renderShop(); renderFavs();
+  showDone(idx>=0?'Removed fav':'Added to favourites ❤️');
+}
+function renderFavs(){
+  let favStores=getFavStores(); let favProds=getFavProds();
+  let sEl=document.getElementById('favStoresList'); let pEl=document.getElementById('favProdsList');
+  if(!sEl||!pEl) return;
+  if(!favStores.length){ sEl.innerHTML='<p style="color:var(--muted);font-size:11px;padding:6px 0">No fav stores. Tap 🤍 on store.</p>'; }
+  else {
+    sEl.innerHTML=favStores.map(em=>{
+      let prof={}; try{ prof=JSON.parse(localStorage.getItem('v2_profile_'+em)||'{}'); }catch{}
+      let name=prof.storeName||em.split('@')[0];
+      let letter=name[0].toUpperCase();
+      return `<div class="fav-store-row"><div class="fav-store-left"><div class="fav-store-icon">${letter}</div><div><div class="fav-store-name">${name} ${isStoreOnline(em)?'🟢':'🔴'}</div><div class="fav-store-sub">${(prof.storeAddress||'').substring(0,30)}</div></div></div><div class="fav-store-actions"><button onclick="viewStore('${em}')" class="pill">View</button><button onclick="toggleFavStore('${em}')" class="pill" style="color:#ef4444">✕</button></div></div>`;
+    }).join('');
+  }
+  let all=getAllProducts();
+  let favProdObjs=favProds.map(f=>all.find(p=>String(p.id)===String(f.id) && p.storeEmail===f.storeEmail)).filter(Boolean);
+  if(!favProdObjs.length){ pEl.innerHTML='<p style="color:var(--muted);font-size:11px;padding:6px 0">No fav products.</p>'; }
+  else {
+    pEl.innerHTML=favProdObjs.map(p=>`
+      <div class="fav-prod-card"><div class="fav-remove" onclick="toggleFavProd('${p.id}','${p.storeEmail}')">✕</div><img src="${p.img||''}" onclick="viewStore('${p.storeEmail}')"><div class="fav-prod-info"><div class="fav-prod-name">${p.name}</div><div class="fav-prod-meta">${p.storeName}</div><div class="fav-prod-price">R${p.price}</div><div class="fav-prod-actions"><button onclick="addToCartByIndexFav('${p.id}','${p.storeEmail}')" class="add-btn">Add</button><button onclick="viewStore('${p.storeEmail}')" class="icon-btn">🏪</button></div></div></div>
+    `).join('');
+  }
+}
+function addToCartByIndexFav(id, storeEm){
+  let all=getAllProducts(); let p=all.find(x=>String(x.id)===String(id) && x.storeEmail===storeEm); if(!p) return alert('Product not found');
+  let cart=safeGetCart(); let found=cart.find(x=>String(x.id)===String(p.id) && x.storeEmail===p.storeEmail);
+  if(found) found.qty+=1; else cart.push({id:p.id,name:p.name,price:p.price,qty:1,cartId:Date.now()+Math.random(),storeEmail:p.storeEmail,storeName:p.storeName});
+  localStorage.setItem('v2_cart_'+email, JSON.stringify(cart)); renderCart(); updateStats(); showDone('Added '+p.name);
+}
+
+function getCards(){ try{ return JSON.parse(localStorage.getItem('v2_cards_'+email)||'[]'); }catch{ return []; } }
+function renderSavedCards(){
+  let cards=getCards(); let el=document.getElementById('savedCardsList'); let info=document.getElementById('cardPayInfo');
+  if(info){ info.textContent=cards.length?`${cards[0].brand} •••• ${cards[0].last4} • One-click ready`:'No card saved • Click to add'; }
+  if(!el) return;
+  if(!cards.length){ el.innerHTML='<p style="color:var(--muted);font-size:12px">No cards saved.</p>'; return; }
+  el.innerHTML=cards.map(c=>`<div class="card-item"><div><b>${c.brand} •••• ${c.last4}</b><div style="font-size:11px;color:var(--muted)">${c.name} • ${c.exp}</div></div><div style="display:flex;gap:6px"><button onclick="useCard('${c.id}')" class="pill">Use</button><button onclick="deleteCard('${c.id}')" class="pill" style="color:#ef4444">Del</button></div></div>`).join('');
+}
+function formatCard(){ let el=document.getElementById('c_num'); let v=el.value.replace(/\D/g,'').substring(0,16); el.value=v.replace(/(.{4})/g,'$1 ').trim(); }
+function openCardModal(){ renderCardListInModal(); document.getElementById('cardModal').classList.add('open'); }
+function closeCardModal(){ document.getElementById('cardModal').classList.remove('open'); }
+function renderCardListInModal(){
+  let cards=getCards(); let el=document.getElementById('cardListInModal');
+  if(!cards.length){ el.innerHTML='<p style="color:var(--muted);font-size:12px">No saved cards. Add new below.</p>'; return; }
+  el.innerHTML=cards.map(c=>`<div class="card-item"><div><b>${c.brand} •••• ${c.last4}</b><div style="font-size:10px;color:var(--muted)">${c.name}</div></div><button onclick="useCard('${c.id}'); closeCardModal();" class="pill">Use this</button></div>`).join('');
+}
+function useCard(id){ let cards=getCards(); let c=cards.find(x=>x.id===id); if(!c) return; selectedCardId=id; document.getElementById('cardPayInfo').textContent=`${c.brand} •••• ${c.last4} selected`; setPay('card'); showDone('Card selected: •••• '+c.last4); closeCardModal(); }
+function deleteCard(id){ if(!confirm('Delete card?')) return; let cards=getCards().filter(c=>c.id!==id); localStorage.setItem('v2_cards_'+email, JSON.stringify(cards)); renderSavedCards(); renderCardListInModal(); showDone('Card deleted'); }
+function validateCardInputs(){
+  let num=document.getElementById('c_num').value.replace(/\s/g,''); let exp=document.getElementById('c_exp').value.trim(); let cvv=document.getElementById('c_cvv').value.trim(); let name=document.getElementById('c_name').value.trim();
+  if(num.length<13 || num.length>19) return 'Enter valid card number';
+  if(!exp.match(/^\d{2}\/\d{2}$/)) return 'Expiry MM/YY';
+  if(cvv.length<3) return 'Enter CVV';
+  if(!name) return 'Enter cardholder name';
+  return null;
+}
+function saveCardFromModal(){
+  let err=validateCardInputs(); if(err) return alert(err);
+  let num=document.getElementById('c_num').value.replace(/\s/g,''); let exp=document.getElementById('c_exp').value.trim(); let name=document.getElementById('c_name').value.trim();
+  let brand=num.startsWith('4')?'Visa':num.startsWith('5')?'Mastercard':'Card';
+  let card={id:Date.now().toString(), brand, last4:num.slice(-4), exp, name, full:num};
+  let cards=getCards(); cards.unshift(card); localStorage.setItem('v2_cards_'+email, JSON.stringify(cards));
+  selectedCardId=card.id; renderSavedCards(); showDone('Card saved •••• '+card.last4); closeCardModal(); setPay('card');
+}
+function payWithEnteredCard(){
+  let err=validateCardInputs(); if(err) return alert(err);
+  let num=document.getElementById('c_num').value.replace(/\s/g,'');
+  selectedCardId='temp_'+num.slice(-4);
+  showDone('Card entered, paying...'); closeCardModal(); setPay('card');
+  window._tempCard={num, exp:document.getElementById('c_exp').value, name:document.getElementById('c_name').value, last4:num.slice(-4), brand:num.startsWith('4')?'Visa':num.startsWith('5')?'Mastercard':'Card'};
+}
+
+function setPay(method){
+  selectedPay=method;
+  document.querySelectorAll('.pay-opt').forEach(el=>el.classList.remove('active'));
+  document.getElementById('pay'+method.charAt(0).toUpperCase()+method.slice(1)).classList.add('active');
+  if(method==='card' && getCards().length===0 && !selectedCardId) openCardModal();
+  updateDeliveryPreview();
+}
+
+function getStoreMap(){
+  let map={};
+  getAllProducts().forEach(p=>{
+    if(!map[p.storeEmail]) map[p.storeEmail]={name:p.storeName,email:p.storeEmail,online:p.online,lat:p.storeLat,lng:p.storeLng,count:0,addr:p.storeAddr,phone:p.storePhone};
+    map[p.storeEmail].count++;
+  });
+  return map;
+}
+
+function renderChips(all){
+  let map=getStoreMap();
+  let el=document.getElementById('storeChips'); if(!el) return;
+  let html=`<div class="chip ${selectedStore==='all'?'active':''}" onclick="setStore('all')">All • ${all.length}</div><div class="chip ${selectedStore==='fav'?'active':''}" onclick="setStore('fav')">❤️ Favs</div>`;
+  Object.keys(map).sort((a,b)=>{
+    const distance = store => buyerLatLng && store.lat != null && store.lng != null && Number.isFinite(Number(store.lat)) && Number.isFinite(Number(store.lng)) ? haversine(buyerLatLng[0],buyerLatLng[1],Number(store.lat),Number(store.lng)) : 9999;
+    return distance(map[a])-distance(map[b]);
+  }).forEach(em=>{
+    let s=map[em]; let dTxt=''; if(buyerLatLng && s.lat && s.lng){ let d=haversine(buyerLatLng[0],buyerLatLng[1],s.lat,s.lng); dTxt=` • ${d<1?d.toFixed(2)+'km':d.toFixed(1)+'km'}`; }
+    html+=`<div class="chip ${selectedStore===em?'active':''}" onclick="setStore('${em}')">${s.online?'🟢':'🔴'} ${s.name} • ${s.count}${dTxt}</div>`;
+  });
+  el.innerHTML=html;
+}
+function setStore(em){ selectedStore=em; renderShop(); }
+
+function renderNearestStores(){
+  let map=getStoreMap();
+  let list=Object.values(map).filter(s=>s.online).map(s=>{
+    let dist=9999;
+    if(buyerLatLng && s.lat != null && s.lng != null && Number.isFinite(Number(s.lat)) && Number.isFinite(Number(s.lng))) dist=haversine(buyerLatLng[0],buyerLatLng[1],Number(s.lat),Number(s.lng));
+    return {...s,dist};
+  });
+  list.sort((a,b)=>a.dist-b.dist);
+  let el=document.getElementById('nearestStores');
+  if(!el) return;
+  if(!list.length){ el.innerHTML='<p style="color:var(--muted);font-size:10px;padding:4px">No online stores near you</p>'; return; }
+  el.innerHTML=list.slice(0,8).map(s=>`
+    <div class="nearest-store ${selectedStore===s.email?'active':''}" onclick="setStore('${s.email}')">
+      <b>${s.name.substring(0,14)}</b>
+      <span>${s.dist<999?s.dist.toFixed(1)+'km':''} • ${s.count} items</span>
+      <span style="color:#22c55e">🟢 Online</span>
+    </div>
+  `).join('');
+}
+
+function renderPopular(){
+  let all=getAllProducts();
+  let orders=JSON.parse(localStorage.getItem('v2_buyer_orders_'+email)||'[]');
+  let countMap={};
+  orders.forEach(o=>{ let txt=o.items||''; all.forEach(p=>{ if(txt.toLowerCase().includes(p.name.toLowerCase())) countMap[p.id]=(countMap[p.id]||0)+1; }); });
+  let popular=[...all].sort((a,b)=>{
+    let ca=countMap[a.id]||0, cb=countMap[b.id]||0;
+    if(buyerLatLng && (a.dist??9999)!==(b.dist??9999)) return (a.dist??9999)-(b.dist??9999);
+    if(ca!==cb) return cb-ca;
+    if(a.online!==b.online) return Number(b.online)-Number(a.online);
+    return (a.dist??9999)-(b.dist??9999);
+  }).slice(0,6);
+  let el=document.getElementById('popularList');
+  let sub=document.getElementById('popularSub');
+  if(!el) return;
+  if(sub) sub.textContent=buyerLatLng?`Top near you • ${popular.length}`:`Top ${popular.length}`;
+  if(!popular.length){ el.innerHTML='<p style="color:var(--muted);font-size:10px">No popular yet</p>'; return; }
+  el.innerHTML=popular.map((p,idx)=>{
+    let fav=isFavProd(p.id,p.storeEmail);
+    let media = p.media || (p.img ? [{type:'image', src:p.img}] : []);
+let first = media[0]?.src || p.img || '';
+let count = media.length;
+let hasVideo = media.some(m=>m.type==='video');
+
+return `<div class="prod-card" style="position:relative">
+  <div class="fav-btn ${fav?'active':''}" onclick="event.stopPropagation(); toggleFavProd('${p.id}','${p.storeEmail}')">${fav?'❤️':'🤍'}</div>
+  <div class="prod-thumb-wrap" onclick="openGallery('${p.id}')" style="width:100%;height:110px;position:relative;border-radius:12px;overflow:hidden;background:#222;cursor:pointer">
+    ${first ? `<img src="${first}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.background='#222'">` : `<div style="display:grid;place-items:center;height:100%">🛒</div>`}
+    ${count>1 ? `<div class="prod-media-badge">${count} ${hasVideo?'🎥':'📷'}</div>` : ''}
+  </div>
+  <div class="prod-info" onclick="openGallery('${p.id}')" style="cursor:pointer">
+    <div class="prod-name">🔥 ${p.name} ${count>1 ? `<span style="font-size:9px;color:#888">• ${count} pics</span>`:''}</div>
+    <div class="prod-meta">${p.storeName} • R${p.price}</div>
+    <button onclick="event.stopPropagation(); addToCartByIndexPopular(${idx})" class="add-btn">${p.online?'Add':'Offline'}</button>
+  </div>
+</div>`;
+  }).join('');
+  window._popular=popular;
+}
+function addToCartByIndexPopular(idx){
+  let p=window._popular[idx]; if(!p) return;
+  let cart=safeGetCart(); let found=cart.find(x=>String(x.id)===String(p.id) && x.storeEmail===p.storeEmail);
+  if(found) found.qty+=1; else cart.push({id:p.id,name:p.name,price:p.price,qty:1,cartId:Date.now()+Math.random(),storeEmail:p.storeEmail,storeName:p.storeName});
+  localStorage.setItem('v2_cart_'+email, JSON.stringify(cart)); renderCart(); updateStats(); showDone('Added '+p.name);
+}
+
+function renderShop(){
+ let q=(document.getElementById('shopSearch').value||'').toLowerCase();
+ let all=getAllProducts();
+ if(buyerLatLng){
+   all.forEach(p=>{ if(p.storeLat!=null && p.storeLng!=null) p.dist=haversine(buyerLatLng[0],buyerLatLng[1],p.storeLat,p.storeLng); else p.dist=9999; });
+   all.sort((a,b)=>a.dist-b.dist || Number(b.online)-Number(a.online));
+ } else {
+   all.sort((a,b)=>(b.online?1:0)-(a.online?1:0));
+ }
+ renderNearestStores();
+ renderPopular();
+ renderChips(all);
+ let products=all.filter(p=>{
+   let txt=(p.name+' '+p.storeName+' '+p.storeEmail).toLowerCase();
+   let matchQ=txt.includes(q);
+   let matchS=false;
+   if(selectedStore==='all') matchS=true;
+   else if(selectedStore==='fav') matchS=isFavStore(p.storeEmail) || isFavProd(p.id,p.storeEmail);
+   else matchS=p.storeEmail===selectedStore;
+   return matchQ&&matchS;
+ });
+ globalProducts=products;
+ let el=document.getElementById('shopList');
+ let title=document.getElementById('allProductsTitle');
+ if(title) title.textContent=selectedStore==='all'?`🛒 All Products • ${products.length}`:`🛒 ${getStoreMap()[selectedStore]?.name||'Filtered'} • ${products.length}`;
+ let sub=document.getElementById('shopSub');
+ if(buyerLatLng){ sub.textContent=`Near you • ${Object.values(getStoreMap()).filter(s=>s.online).length} online • ${products.length} results`; }
+ else { sub.textContent=`${products.length} results • Save GPS to see nearest`; }
+ if(products.length===0){el.innerHTML='<p style="color:var(--muted);font-size:11px;grid-column:1/3;text-align:center;padding:20px">No products found for "'+q+'"</p>';return;}
+ el.innerHTML=products.map((p,idx)=>{
+   let offlineClass=p.online?'':'offline';
+   let overlay=p.online?'':`<div class="offline-overlay"><span class="offline-text">OFFLINE</span></div>`;
+   let dotClass=p.online?'online':'offline';
+   let distBadge=(p.dist!=null && p.dist<999)?`<span class="dist-pill">${p.dist<1?p.dist.toFixed(2)+'km':p.dist.toFixed(1)+'km'}</span>`:'';
+   let favProd=isFavProd(p.id,p.storeEmail);
+      let media = p.media || (p.img ? [{type:'image', src:p.img}] : []);
+   let first = media[0]?.src || p.img || '';
+   let count = media.length;
+   let hasVideo = media.some(m=>m.type==='video');
+
+   return `<div class="prod-card ${offlineClass}">${overlay}
+     <div class="fav-btn ${favProd?'active':''}" onclick="event.stopPropagation(); toggleFavProd('${p.id}','${p.storeEmail}')">${favProd?'❤️':'🤍'}</div>
+     <div style="position:relative;width:100%;height:130px;overflow:hidden;border-radius:12px;background:#222;cursor:pointer" onclick="openGallery('${p.id}')">
+       ${first ? `<img src="${first}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.background='#222'">` : `<div style="display:grid;place-items:center;height:100%">🛒</div>`}
+       ${count>1 ? `<div style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,.75);color:#fff;font-size:9px;padding:3px 8px;border-radius:20px;font-weight:800;border:1px solid rgba(255,255,255,.2)">${count} ${hasVideo?'🎥':'📷'}</div>` : ''}
+     </div>
+     <div class="prod-info">
+       <div class="prod-name" onclick="openGallery('${p.id}')" style="cursor:pointer">${p.name} ${distBadge} ${count>1 ? `<span style="font-size:9px;color:#888">• ${count} pics</span>`:''}</div>
+       <div class="prod-meta"><span class="dot ${dotClass}"></span> <span style="cursor:pointer;text-decoration:underline" onclick="viewStore('${p.storeEmail}')">${p.storeName}</span></div>
+       <div class="prod-price">R${p.price}</div>
+       <div class="store-actions">
+         <button onclick='addToCartByIndex(${idx})' ${p.online?'':'disabled'} class="add-btn" style="flex:1">${p.online?'Add':'Off'}</button>
+         <button onclick="viewStore('${p.storeEmail}')" class="icon-btn">🏪</button>
+         <button onclick="openStoreLocation('${p.storeEmail}')" class="icon-btn">📍</button>
+         <button onclick="openGallery('${p.id}')" class="icon-btn" title="View all images">👁️</button>
+       </div>
+     </div>
+   </div>`;
+ }).join('');
+}
+
+function openAllStores(){
+  let map=getStoreMap();
+  let list=Object.values(map).map(s=>{
+    let dist=9999;
+    if(buyerLatLng && s.lat && s.lng) dist=haversine(buyerLatLng[0],buyerLatLng[1],s.lat,s.lng);
+    return {...s,dist};
+  }).sort((a,b)=>a.dist-b.dist || Number(b.online)-Number(a.online));
+  let el=document.getElementById('allStoresList');
+  el.innerHTML=list.length?list.map(s=>`
+    <div class="all-store-row">
+      <div style="display:flex;gap:8px;align-items:center"><div class="fav-store-icon">${s.name[0].toUpperCase()}</div><div><b style="font-size:12px">${s.name}</b><div style="font-size:10px;color:var(--muted2)">${s.online?'🟢 Online':'🔴 Offline'} • ${s.dist<999?s.dist.toFixed(1)+'km':''} • ${s.count} products<br>${(s.addr||'').substring(0,32)}</div></div></div>
+      <div style="display:flex;gap:4px;flex-direction:column"><button onclick="viewStore('${s.email}'); closeAllStores();" class="pill">View</button><button onclick="openStoreLocation('${s.email}')" class="pill">📍 Map</button></div>
+    </div>
+  `).join(''):'<p style="color:var(--muted);font-size:11px">No stores found</p>';
+  document.getElementById('allStoresModal').classList.add('open');
+}
+function closeAllStores(){ document.getElementById('allStoresModal').classList.remove('open'); }
+
+function getCart(){ return safeGetCart(); }
+function addToCartByIndex(idx){
+ let p=globalProducts[idx]; if(!p) return alert('Product not found');
+ if(!p.online){return alert('This store is OFFLINE.');}
+ let cart=getCart(); let found=cart.find(x=>String(x.id)===String(p.id) && x.storeEmail===p.storeEmail);
+ if(found){ found.qty+=1; } else { cart.push({ id:p.id, name:p.name, price:p.price, qty:1, cartId:Date.now()+Math.random(), storeEmail:p.storeEmail, storeName:p.storeName }); }
+ try{
+   localStorage.setItem('v2_cart_'+email,JSON.stringify(cart));
+   showDone('Cart: '+p.name+' x'+(found?found.qty:1));
+   renderCart(); updateStats(); updateDeliveryPreview();
+ }catch(e){ localStorage.removeItem('v2_cart_'+email); localStorage.setItem('v2_cart_'+email,JSON.stringify([{ id:p.id, name:p.name, price:p.price, qty:1, cartId:Date.now(), storeEmail:p.storeEmail, storeName:p.storeName }])); renderCart(); updateStats(); }
+}
+function changeQty(cartId,delta){ let cart=getCart(); let item=cart.find(c=>c.cartId===cartId); if(!item) return; item.qty+=delta; if(item.qty<=0){ cart=cart.filter(c=>c.cartId!==cartId); } localStorage.setItem('v2_cart_'+email,JSON.stringify(cart)); renderCart(); updateStats(); updateDeliveryPreview(); }
+function renderCart(){
+ let cart=getCart(); let el=document.getElementById('cartList'); let total=0;
+ let badge=document.getElementById('cartBadge'); let topCount=document.getElementById('cartTopCount2'); let totalQty=cart.reduce((s,c)=>s+c.qty,0);
+ badge.textContent=cart.length; let bnavCart=document.getElementById('bnav-cart');
+ if(totalQty>0){ bnavCart.classList.add('has-items'); topCount.textContent='('+totalQty+')'; } else { bnavCart.classList.remove('has-items'); topCount.textContent=''; }
+ document.getElementById('cartCountTop').textContent=totalQty+' items in cart';
+ let bal=parseFloat(localStorage.getItem('v2_balance_'+email)||'0');
+ document.getElementById('walletPayInfo').textContent=`R${bal.toFixed(2)} available`;
+ if(cart.length===0){el.innerHTML='<p style="color:var(--muted);font-size:12px">Cart empty</p>';document.getElementById('cartTotal').textContent='';document.getElementById('deliveryFeePreview').textContent='';return;}
+ el.innerHTML=cart.map(c=>{ total+=c.price*c.qty; let img=getProductImage(c.id,c.storeEmail); let online=isStoreOnline(c.storeEmail); return `<div style="display:flex;gap:10px;align-items:center;padding:10px;background:var(--card3);border-radius:12px;margin-top:8px;border:1px solid var(--border2);${online?'':'opacity:.5'}"><img src="${img}" style="width:48px;height:48px;border-radius:10px;object-fit:cover;background:var(--border2)" onerror="this.style.display='none'"><div style="flex:1"><div style="font-weight:800;font-size:12px">${c.name}</div><div style="font-size:11px;color:var(--muted2)">${c.storeName} • R${c.price}</div></div><div style="display:flex;align-items:center;gap:6px"><button class="qty-btn" onclick="changeQty(${c.cartId},-1)">−</button><span style="font-weight:900;font-size:12px;min-width:18px;text-align:center">${c.qty}</span><button class="qty-btn" onclick="changeQty(${c.cartId},1)">+</button></div></div>`; }).join('');
+ document.getElementById('cartTotal').textContent='Products: R'+total.toFixed(2); updateDeliveryPreview();
+}
+function updateDeliveryPreview(){
+  let cart=getCart(); if(!cart.length){ let el=document.getElementById('deliveryFeePreview'); if(el) el.textContent=''; return; }
+  let el=document.getElementById('deliveryFeePreview'); if(!el) return;
+  if(!window.FLOW){ el.textContent='Delivery: calculated at checkout'; return; }
+  let buyerProfile=JSON.parse(localStorage.getItem('v2_buyer_'+email)||'{}');
+  let addr=buyerProfile.addr||document.getElementById('b_addr').value||'';
+  let stores={}; cart.forEach(item=>{ if(!stores[item.storeEmail]) stores[item.storeEmail]=0; stores[item.storeEmail]+=item.price*item.qty; });
+  let totalDelivery=0;
+  Object.keys(stores).forEach(se=>{
+    let feeObj=FLOW.calculateRiderFee({address:addr, storeEmail:se, buyerEmail:email, buyerLat:buyerLatLng?buyerLatLng[0]:null, buyerLng:buyerLatLng?buyerLatLng[1]:null});
+    totalDelivery+=feeObj.total;
+  });
+  let productTotal=cart.reduce((s,c)=>s+c.price*c.qty,0);
+  let grand=productTotal+totalDelivery;
+  el.innerHTML=`<div style="display:flex;justify-content:space-between"><span>Products</span><b>R${productTotal.toFixed(2)}</b></div><div style="display:flex;justify-content:space-between;margin-top:4px"><span>Delivery fee</span><b>R${totalDelivery.toFixed(2)}</b></div><div style="display:flex;justify-content:space-between;margin-top:8px;border-top:1px solid var(--border);padding-top:8px;font-size:14px"><span>Total to pay</span><b>R${grand.toFixed(2)}</b></div>`;
+}
+function checkout(){
+ let cart=getCart(); if(cart.length===0)return alert('Cart empty');
+ let offlineStores=cart.filter(c=>!isStoreOnline(c.storeEmail));
+ if(offlineStores.length>0){ let names=[...new Set(offlineStores.map(o=>o.storeName))].join(', '); return alert('OFFLINE: '+names); }
+ let buyerProfile=JSON.parse(localStorage.getItem('v2_buyer_'+email)||'{}');
+ let buyerProfile2=JSON.parse(localStorage.getItem('v2_buyer_profile_'+email)||'{}');
+ let merged={...buyerProfile2,...buyerProfile};
+ if(!merged.phone||!merged.addr) return alert('Save Phone + Address + GPS first!');
+ if(!merged.lat || !merged.lng) return alert('Set delivery GPS');
+
+ let productTotal=cart.reduce((s,c)=>s+c.price*c.qty,0);
+ let stores={}; cart.forEach(item=>{ if(!stores[item.storeEmail]) stores[item.storeEmail]=0; stores[item.storeEmail]+=item.price*item.qty; });
+ let totalDelivery=0;
+ Object.keys(stores).forEach(se=>{ let feeObj=FLOW.calculateRiderFee({address:merged.addr, storeEmail:se, buyerEmail:email, buyerLat:buyerLatLng?buyerLatLng[0]:null, buyerLng:buyerLatLng?buyerLatLng[1]:null}); totalDelivery+=feeObj.total; });
+ let grand=productTotal+totalDelivery;
+
+ if(selectedPay==='wallet'){
+   let bal=parseFloat(localStorage.getItem('v2_balance_'+email)||'0');
+   if(bal<grand) return alert(`Wallet R${bal.toFixed(2)} not enough for R${grand.toFixed(2)}`);
+   localStorage.setItem('v2_balance_'+email, (bal-grand).toFixed(2));
+ }
+ if(selectedPay==='card'){
+   if(!selectedCardId && getCards().length===0 && !window._tempCard){ openCardModal(); return alert('Enter card details to proceed'); }
+   if(!selectedCardId && !window._tempCard && getCards().length>0){ selectedCardId=getCards()[0].id; }
+ }
+ if(!window.FLOW){ return alert('orders-flow.js missing'); }
+
+ let res = FLOW.createOrders(email, {name:merged.name||email, phone:merged.phone, addr:merged.addr, lat:merged.lat, lng:merged.lng, buyerLat:merged.lat, buyerLng:merged.lng}, cart.map(c=>({name:c.name, price:c.price, qty:c.qty, storeEmail:c.storeEmail, storeName:c.storeName})), {paymentMethod:selectedPay});
+
+ if(selectedPay==='cod'){
+   cart.forEach(item=>{
+     let keys=[`v2_balance_${item.storeEmail}`, `v2_store_balance_${item.storeEmail}`];
+     keys.forEach(k=>{
+       let v=localStorage.getItem(k);
+       if(v!==null){ let num=parseFloat(v)||0; let newVal=Math.max(0, num - (item.price*item.qty)); localStorage.setItem(k, newVal.toFixed(2)); }
+     });
+   });
+ }
+
+ if(selectedPay==='card' && window._tempCard){
+   setTimeout(()=>{
+     if(confirm(`Save card •••• ${window._tempCard.last4} for one-click next time?`)){
+       let cards=getCards(); let card={id:Date.now().toString(), brand:window._tempCard.brand, last4:window._tempCard.last4, exp:window._tempCard.exp, name:window._tempCard.name, full:window._tempCard.num};
+       cards.unshift(card); localStorage.setItem('v2_cards_'+email, JSON.stringify(cards)); renderSavedCards(); showDone('Card saved •••• '+card.last4);
+     }
+     window._tempCard=null; selectedCardId=null;
+   },600);
+ }
+
+ showDone(`Order ${selectedPay.toUpperCase()}: R${grand.toFixed(2)}`);
+ localStorage.setItem('v2_cart_'+email,'[]');
+ renderCart(); renderOrders(); updateStats();
+ openTab('orders', document.querySelectorAll('.bnav-tab')[2]);
+}
+
+let curTab='active';
+function switchOrderTab(t,el){
+  curTab=t;
+  document.querySelectorAll('.order-tab').forEach(x=>x.classList.remove('active'));
+  if(el) el.classList.add('active');
+  renderOrders();
+}
+
+function renderOrders(){
+ let q=(document.getElementById('orderSearch')?.value||'').toLowerCase();
+ // FIX: email fallback
+ let email = '';
+ try{ email = JSON.parse(localStorage.getItem('bhv2_session')||'{}').email || localStorage.getItem('v2_email') || localStorage.getItem('bhv2_email') || 'buyer@test.com'; }catch{ email='buyer@test.com'; }
+ 
+ let orders=JSON.parse(localStorage.getItem('v2_buyer_orders_'+email)||'[]');
+ if(orders.length===0){
+   // also check old key without email
+   for(let i=0;i<localStorage.length;i++){
+     let k=localStorage.key(i);
+     if(k && k.startsWith('v2_buyer_orders_')){
+       try{ let a=JSON.parse(localStorage.getItem(k)||'[]'); if(a.length>orders.length) orders=a; }catch{}
+     }
+   }
+ }
+
+ let filtered=orders.filter(o=>{
+   let s=(o.status||'').toLowerCase().trim();
+   // FIX: ADDED 'history' - your old code missed it, that's why History tab showed nothing
+   let isHistory=['delivered','completed','history','rejected','cancelled','canceled'].includes(s);
+   if(curTab==='active' && isHistory) return false;
+   if(curTab==='history' && !isHistory) return false;
+   if(!s) return curTab==='active';
+   let txt = ((o.items||'')+' '+(o.store||'')+' '+(o.itemsText||'')+' '+(o.paymentMethod||'')+' '+(o.id||'')).toLowerCase();
+   return txt.includes(q);
+ });
+
+ if(filtered.length===0 && !q){
+   filtered=orders.filter(o=>{
+     let s=(o.status||'').toLowerCase().trim();
+     let isHistory=['delivered','completed','history','rejected','cancelled','canceled'].includes(s);
+     if(!s) return curTab==='active';
+     return curTab==='history'?isHistory:!isHistory;
+   });
+ }
+
+ let list=document.getElementById('ordersList');
+ if(!list) return;
+
+ if(filtered.length===0){list.innerHTML='<p style="color:var(--muted);font-size:12px">No '+curTab+' orders • Found '+orders.length+' total</p>';return;}
+
+ // BRING: Your design + my progress bar + Track button (no ruin)
+ list.innerHTML=filtered.map(o=>{
+   let s=(o.status||'active').toLowerCase().trim();
+   let step={'incoming':1,'active':1,'accepted_by_store':2,'picked_by_rider':3,'on_the_way':4,'out_for_delivery':4,'delivered':5,'completed':5,'history':5}[s]||1;
+   let isHistory = curTab==='history';
+   return `<div style="padding:12px;background:var(--card3);border-radius:14px;margin-top:10px;border:1px solid var(--border2);color:var(--text)">
+     <div style="display:flex;justify-content:space-between;align-items:center">
+       <div style="font-weight:800;font-size:13px">${o.store||o.items||'Order'} <span style="font-size:9px;padding:3px 6px;border-radius:999px;border:1px solid var(--border);background:var(--card2)">${(o.paymentMethod||'').toUpperCase()}</span></div>
+       <div class="pill" style="background:${isHistory?'#333':'#f59e0b'};color:${isHistory?'#888':'#000'};font-size:10px;font-weight:900;padding:4px 10px;border-radius:20px">${o.status}</div>
+     </div>
+     <div style="font-size:11px;color:var(--muted2);margin-top:4px">${o.items||o.itemsText||'BREAD x1'} • R${o.total||0} • ${o.date||o.createdAt||''}</div>
+     <div style="display:flex;gap:4px;margin:10px 0">
+       <div style="flex:1;height:6px;border-radius:10px;background:${step>=1?'#22c55e':'#333'}"></div>
+       <div style="flex:1;height:6px;border-radius:10px;background:${step>=2?'#22c55e':'#333'}"></div>
+       <div style="flex:1;height:6px;border-radius:10px;background:${step>=3?'#22c55e':'#333'}"></div>
+       <div style="flex:1;height:6px;border-radius:10px;background:${step>=4?'#22c55e':'#333'}"></div>
+       <div style="flex:1;height:6px;border-radius:10px;background:${step>=5?'#22c55e':'#333'}"></div>
+     </div>
+     <div style="display:flex;justify-content:space-between;font-size:9px;color:#666;margin-bottom:6px"><span>Ordered</span><span>Accepted</span><span>Picked</span><span>On Way</span><span>Delivered</span></div>
+     ${!isHistory?`<button onclick="BuyerTracking && BuyerTracking.openMap('${o.id||''}')" style="width:100%;background:#fff;color:#000;border:none;padding:10px;border-radius:10px;font-weight:900;font-size:12px;cursor:pointer">🗺️ Track Rider Live</button>`:`<div style="font-size:11px;color:#22c55e;background:rgba(34,197,94,.1);padding:6px 10px;border-radius:8px">✓ Completed — in History</div>`}
+   </div>`;
+ }).join('');
+}
+function updateStats(){
+ let orders=JSON.parse(localStorage.getItem('v2_buyer_orders_'+email)||'[]');
+ let today=new Date().toLocaleDateString(); let spent=0;
+ orders.forEach(o=>{ let orderDay=o.dateDay || ''; if(!orderDay && o.date){try{ orderDay=new Date(o.date).toLocaleDateString(); }catch(e){}} if(orderDay===today){spent+=parseFloat(o.total)||0;} });
+ let spentEl=document.getElementById('spentToday'); if(spentEl) spentEl.textContent='R'+spent.toFixed(2);
+ let bal=parseFloat(localStorage.getItem('v2_balance_'+email)||'0');
+ let balTop=document.getElementById('balanceTop'); let walletEl=document.getElementById('wallet');
+ if(balTop) balTop.textContent='R'+bal.toFixed(2); if(walletEl) walletEl.textContent='R'+bal.toFixed(2);
+ if(bal>=1){if(balTop) balTop.classList.add('green'); if(walletEl) walletEl.classList.add('green');}else{if(balTop) balTop.classList.remove('green'); if(walletEl) walletEl.classList.remove('green');}
+ 
+ if(window.updateAddMoneyButton) window.updateAddMoneyButton();
+}
+
+function showHist(t){document.getElementById('earnHist').classList.toggle('hidden',t!=='earn');document.getElementById('withHist').classList.toggle('hidden',t!=='with');document.getElementById('btnEarn').style.background=t==='earn'?'var(--text)':'var(--card3)';document.getElementById('btnEarn').style.color=t==='earn'?'var(--bg)':'var(--text)';document.getElementById('btnWith').style.background=t==='with'?'var(--text)':'var(--card3)';document.getElementById('btnWith').style.color=t==='with'?'var(--bg)':'var(--text)';}
+function renderHistory(){
+ let orders=JSON.parse(localStorage.getItem('v2_buyer_orders_'+email)||'[]');let topups=JSON.parse(localStorage.getItem('v2_topups_'+email)||'[]');
+ let earnEl=document.getElementById('earnHist'); let withEl=document.getElementById('withHist');
+ if(earnEl) earnEl.innerHTML=orders.length?orders.map(o=>`<div class="hist-item hist-spent"><div><span class="hist-badge badge-spent">🔴 ${(o.paymentMethod||'').toUpperCase()}</span><div style="margin-top:6px;font-weight:700">${o.date} • ${o.store||''}</div></div><span class="amt-spent">-R${o.total}</span></div>`).join(''):'<p style="font-size:11px;color:var(--muted)">No spending</p>';
+ if(withEl) withEl.innerHTML=topups.length?topups.map(w=>`<div class="hist-item hist-topup"><div><span class="hist-badge badge-topup">🟢 TOP-UP</span><div style="margin-top:6px;font-weight:700">${w.date}</div></div><span class="amt-topup">+R${w.amount}</span></div>`).join(''):'<p style="font-size:11px;color:var(--muted)">No top-ups</p>';
+}
+function toggleTheme(){ let isLight=document.body.classList.toggle('light'); localStorage.setItem('v2_theme_buyer_'+email, isLight?'light':'dark'); let btn=document.getElementById('themeBtn'); if(btn) btn.textContent=isLight?'☀️':'🌙'; }
+(function loadTheme(){ let t=localStorage.getItem('v2_theme_buyer_'+email)||'dark'; if(t==='light'){document.body.classList.add('light'); let b=document.getElementById('themeBtn'); if(b) b.textContent='☀️';} })();
+async function logout() {
+
+    try {
+        const { error } = await window.supabaseClient.auth.signOut();
+
+        if (error) {
+            console.error('Logout error:', error);
+            alert('Unable to log out. Please try again.');
+            return;
+        }
+
+        localStorage.removeItem('bhv2_email');
+        localStorage.removeItem('bhv2_role');
+        localStorage.removeItem('v2_email');
+        localStorage.removeItem('v2_role');
+
+        location.replace('index.html');
+
+    } catch (error) {
+        console.error('Logout failed:', error);
+        alert('Logout failed. Please try again.');
+    }
+}
+
+function viewStore(em){
+  let profile={}; try{ profile=JSON.parse(localStorage.getItem('v2_profile_'+em)||'{}'); }catch{}
+  let prods=getAllProducts().filter(p=>p.storeEmail===em);
+  currentStoreModal={email:em, profile, phone:profile.storePhone||profile.phone||'', lat:profile.storeLat, lng:profile.storeLng};
+  document.getElementById('storeModalName').textContent=profile.storeName||em.split('@')[0];
+  document.getElementById('storeModalInfo').innerHTML=`${profile.storeAddress||'No address'}<br>📞 ${profile.storePhone||'No phone'} • ${isStoreOnline(em)?'🟢 Online':'🔴 Offline'}`;
+  document.getElementById('storeModalProds').innerHTML=prods.length?prods.map(p=>{
+    let fav=isFavProd(p.id,p.storeEmail);
+    return `<div class="prod-card"><div class="fav-btn ${fav?'active':''}" onclick="toggleFavProd('${p.id}','${p.storeEmail}')" style="position:absolute">${fav?'❤️':'🤍'}</div><img src="${p.img||''}"><div class="prod-info"><div class="prod-name">${p.name}</div><div class="prod-price">R${p.price}</div><button onclick="addToCartFromModal('${p.id}','${em}')" class="add-btn">${p.online?'Add':'Offline'}</button></div></div>`;
+  }).join(''):'<p style="color:var(--muted)">No products</p>';
+  updateFavBtn(); document.getElementById('storeModal').classList.add('open');
+}
+function addToCartFromModal(id, em){
+  let all=getAllProducts(); let p=all.find(x=>String(x.id)===String(id) && x.storeEmail===em); if(!p) return;
+  let cart=safeGetCart(); let found=cart.find(x=>String(x.id)===String(p.id) && x.storeEmail===p.storeEmail);
+  if(found) found.qty+=1; else cart.push({id:p.id,name:p.name,price:p.price,qty:1,cartId:Date.now()+Math.random(),storeEmail:p.storeEmail,storeName:p.storeName});
+  localStorage.setItem('v2_cart_'+email, JSON.stringify(cart)); renderCart(); updateStats(); showDone('Added '+p.name);
+}
+function closeStoreModal(){ document.getElementById('storeModal').classList.remove('open'); }
+function updateFavBtn(){ if(!currentStoreModal) return; let em=currentStoreModal.email; document.getElementById('storeModalFav').textContent=isFavStore(em)?'❤️ Unfav':'🤍 Fav'; }
+function toggleFavStoreModal(){ if(!currentStoreModal) return; toggleFavStore(currentStoreModal.email); updateFavBtn(); }
+function openWa(){
+  if(!currentStoreModal) return;
+  let phone=currentStoreModal.phone.replace(/\D/g,''); if(!phone) return alert('No WhatsApp');
+  if(!phone.startsWith('27') && phone.startsWith('0')) phone='27'+phone.substring(1);
+  let text=encodeURIComponent(`Hi ${currentStoreModal.profile.storeName||'Store'}! I found you on BuyEasy.`);
+  window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
+}
+function openStoreLocation(em){
+  let profile={}; try{ profile=JSON.parse(localStorage.getItem('v2_profile_'+em)||'{}'); }catch{}
+  if(!profile.storeLat||!profile.storeLng) return alert('No GPS saved');
+  currentStoreModal={email:em, profile, lat:profile.storeLat, lng:profile.storeLng};
+  openStoreMapFromModal();
+}
+function openStoreMapFromModal(){
+  if(!currentStoreModal || !currentStoreModal.lat) return alert('No location');
+  document.getElementById('mapModal').classList.add('open');
+  let sLat=parseFloat(currentStoreModal.lat), sLng=parseFloat(currentStoreModal.lng);
+  document.getElementById('mapModalInfo').innerHTML=`Store: ${currentStoreModal.profile.storeName||currentStoreModal.email}<br>Distance: ${buyerLatLng?haversine(buyerLatLng[0],buyerLatLng[1],sLat,sLng).toFixed(2)+'km':''}`;
+  setTimeout(()=>{
+    if(storeMapViewMap){ storeMapViewMap.remove(); storeMapViewMap=null; }
+    storeMapViewMap=L.map('storeMapView').setView([sLat,sLng],14);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM'}).addTo(storeMapViewMap);
+    L.marker([sLat,sLng]).addTo(storeMapViewMap).bindPopup('Store').openPopup();
+    if(buyerLatLng){ L.marker(buyerLatLng).addTo(storeMapViewMap).bindPopup('You'); L.polyline([buyerLatLng,[sLat,sLng]],{color:'#22c55e',dashArray:'6,6'}).addTo(storeMapViewMap); storeMapViewMap.fitBounds([buyerLatLng,[sLat,sLng]],{padding:[30,30]}); }
+    setTimeout(()=>storeMapViewMap.invalidateSize(),200);
+  },200);
+}
+function closeMapModal(){ document.getElementById('mapModal').classList.remove('open'); }
+
+try{ let t=localStorage.getItem('v2_cart_'+email); if(t && t.length>100000) localStorage.removeItem('v2_cart_'+email); }catch(e){}
+loadBuyer();renderShop();renderCart();renderOrders();updateStats();renderHistory();renderFavs();renderSavedCards();
+
+if(navigator.geolocation){ navigator.geolocation.getCurrentPosition(p=>{ if(!buyerLatLng) buyerLatLng=[p.coords.latitude,p.coords.longitude]; renderShop(); },()=>{}, {enableHighAccuracy:true}); }
+setInterval(()=>{
+  renderShop(); 
+  updateStats(); 
+  // Refresh persisted orders instead of repainting the legacy localStorage list.
+  if(window.BuyerSupabase && typeof BuyerSupabase.renderOrders==='function') BuyerSupabase.renderOrders();
+}, 15000);
+
+// === BUYER VIEW ALL IMAGES GALLERY ===
+let galleryMedia=[], galleryIndex=0;
+
+function openGallery(productId){
+  let all=[];
+  for(let i=0;i<localStorage.length;i++){
+    let k=localStorage.key(i);
+    if(k.startsWith('v2_products_')){
+      try{ let arr=JSON.parse(localStorage.getItem(k)||'[]'); all=all.concat(arr); }catch{}
+    }
+  }
+  let p=all.find(x=>String(x.id)===String(productId));
+  if(!p){ 
+    // try globalProducts
+    if(window.globalProducts) p=globalProducts.find(x=>String(x.id)===String(productId));
+  }
+  if(!p) return alert('Product media not found');
+  galleryMedia=p.media || (p.img?[{type:'image',src:p.img}]:[]);
+  if(!galleryMedia.length) return alert('No images');
+  galleryIndex=0;
+  document.getElementById('galleryTitle').textContent=p.name+' • R'+p.price;
+  renderGallery();
+  document.getElementById('galleryModal').style.display='flex';
+}
+
+function renderGallery(){
+  let m=galleryMedia[galleryIndex];
+  let main=document.getElementById('galleryMain');
+  document.getElementById('galleryCount').textContent=(galleryIndex+1)+' / '+galleryMedia.length;
+  if(m.type==='video'){
+    main.innerHTML=`<video src="${m.src}" controls autoplay muted loop style="max-width:100%;max-height:68vh;border-radius:16px;background:#000"></video>`;
+  } else {
+    main.innerHTML=`<img src="${m.src}" style="max-width:100%;max-height:68vh;border-radius:16px;object-fit:contain;background:#000">`;
+  }
+  document.getElementById('galleryThumbs').innerHTML=galleryMedia.map((x,i)=>`
+    <div onclick="galleryIndex=${i};renderGallery()" style="min-width:56px;width:56px;height:56px;border-radius:10px;overflow:hidden;border:${i===galleryIndex?'2px solid #22c55e':'1px solid #333'};cursor:pointer;opacity:${i===galleryIndex?1:.6}">
+      ${x.type==='image'?`<img src="${x.src}" style="width:100%;height:100%;object-fit:cover">`:`<video src="${x.src}" muted style="width:100%;height:100%;object-fit:cover"></video>`}
+    </div>
+  `).join('');
+}
+
+function nextMedia(){ galleryIndex=(galleryIndex+1)%galleryMedia.length; renderGallery(); }
+function prevMedia(){ galleryIndex=(galleryIndex-1+galleryMedia.length)%galleryMedia.length; renderGallery(); }
+function closeGallery(){ document.getElementById('galleryModal').style.display='none'; }
+
+// WALLET - Card Linked Check - Add Money only if card linked
+function getBuyerCards(){
+  let email='';
+  try{ email=JSON.parse(localStorage.getItem('bhv2_session')||'{}').email||localStorage.getItem('v2_email')||localStorage.getItem('bhv2_email')||''; }catch{}
+  if(!email) email='buyer@test.com';
+  
+  let all=[];
+  let keys=['v2_cards_'+email, 'v2_saved_cards_'+email, 'v2_buyer_cards_'+email, 'v2_cards_buyer@test.com', 'v2_saved_cards', 'bhv2_cards', 'bhv2_cards_'+email];
+  
+  keys.forEach(k=>{
+    try{
+      let raw = localStorage.getItem(k);
+      if(!raw) return;
+      let arr=JSON.parse(raw);
+      if(Array.isArray(arr)) arr.forEach(c=>{ if(c) all.push(c); });
+      else if(arr && (arr.number||arr.last4||arr.cardNumber)) all.push(arr);
+    }catch{}
+  });
+
+  // Also check all keys starting with v2_cards_ / bhv2_cards_
+  for(let i=0;i<localStorage.length;i++){
+    let k=localStorage.key(i);
+    if(k && (k.startsWith('v2_cards_') || k.startsWith('bhv2_cards_') || k.startsWith('v2_saved_cards_'))){
+      if(keys.includes(k)) continue; // already checked
+      try{ 
+        let arr=JSON.parse(localStorage.getItem(k)||'[]'); 
+        if(Array.isArray(arr)) all.forEach?null:all.push(...arr.filter(Boolean));
+        else if(arr && (arr.number||arr.last4)) all.push(arr);
+      }catch{}
+    }
+  }
+  
+  // DEDUPE + filter valid
+  let seen={};
+  return all.filter(c=>{
+    if(!c) return false;
+    if(!(c.number||c.last4||c.cardNumber||c.brand)) return false;
+    let id = String(c.number||c.cardNumber||'') + '_' + String(c.last4||'');
+    if(seen[id]) return false;
+    seen[id]=1;
+    return true;
+  });
+}
+
+// FIXED updateAddMoneyButton - NO :contains error
+
+
+
+
+</script>
+
+<!-- BUYER GALLERY MODAL -->
+<div id="galleryModal" style="position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:99999;display:none;flex-direction:column">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid #222">
+    <div id="galleryTitle" style="color:#fff;font-weight:900">Product</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span id="galleryCount" style="color:#888;font-size:11px;padding:5px 10px;border:1px solid #333;border-radius:20px">1 / 1</span>
+      <button onclick="closeGallery()" style="width:36px;height:36px;border-radius:50%;border:1px solid #333;background:#111;color:#fff;font-weight:900;cursor:pointer">✕</button>
+    </div>
+  </div>
+  <div style="flex:1;display:flex;align-items:center;justify-content:center;position:relative">
+    <button onclick="prevMedia()" style="position:absolute;left:10px;z-index:2;width:44px;height:44px;border-radius:50%;border:1px solid #333;background:rgba(0,0,0,.6);color:#fff;font-size:20px;cursor:pointer">‹</button>
+    <div id="galleryMain" style="width:100%;height:100%;display:grid;place-items:center;padding:16px;box-sizing:border-box"></div>
+    <button onclick="nextMedia()" style="position:absolute;right:10px;z-index:2;width:44px;height:44px;border-radius:50%;border:1px solid #333;background:rgba(0,0,0,.6);color:#fff;font-size:20px;cursor:pointer">›</button>
+  </div>
+  <div id="galleryThumbs" style="display:flex;gap:8px;padding:12px 16px;overflow-x:auto;border-top:1px solid #222;background:#0a0a0a"></div>
+</div>
+
+<!-- BUYEASY MAP POPUP - Outside Orders list so it never gets deleted -->
+<div id="riderMapPopup" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.85);backdrop-filter:blur(8px)">
+  <div style="position:absolute;bottom:0;left:0;right:0;background:#111;border-radius:20px 20px 0 0;padding:16px;max-height:85vh">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="font-weight:900;color:#fff">🏍️ Rider Live Location</div>
+      <button onclick="BuyerTracking.closeMap()" style="background:#333;color:#fff;border:none;width:32px;height:32px;border-radius:50%;font-weight:900">✕</button>
+    </div>
+    <div id="liveMap" style="height:380px;border-radius:16px;background:#222"></div>
+    <div style="margin-top:12px;padding:10px;background:rgba(34,197,94,.15);border-radius:10px;color:#22c55e;font-size:12px;font-weight:700" id="liveMapStatus">Rider picked — on the way to you!</div>
+  </div>
+</div>
+
+<script>
+// ADD CARD MODAL - SAVES TO WALLET-GUARD KEYS
+window.openAddCard = window.openAddCard || function(){
+  let holder = prompt('Card Holder Name:');
+  if(!holder) return;
+  let number = prompt('Card Number (16 digits):\n4242 4242 4242 4242');
+  if(!number || number.replace(/\s/g,'').length < 12) { alert('Invalid card number'); return; }
+  let exp = prompt('Expiry MM/YY:\n12/28');
+  if(!exp) return;
+  let cvc = prompt('CVC:\n123');
+  if(!cvc) return;
+
+  let cleanNum = number.replace(/\s/g,'');
+  let last4 = cleanNum.slice(-4);
+  let card = {
+    id: Date.now(),
+    holder: holder,
+    number: cleanNum,
+    last4: last4,
+    cardNumber: cleanNum,
+    exp: exp,
+    cvc: cvc,
+    brand: cleanNum.startsWith('4')?'Visa':cleanNum.startsWith('5')?'Mastercard':'Card',
+    addedAt: new Date().toISOString()
+  };
+
+  // SAVE TO ALL KEYS WALLET-GUARD CHECKS
+  let email=''; try{ email=JSON.parse(localStorage.getItem('bhv2_session')||'{}').email||'buyer@test.com'; }catch{}
+  if(!email) email='buyer@test.com';
+  let keys = ['v2_cards_'+email, 'v2_saved_cards_'+email, 'bhv2_cards_'+email];
+  keys.forEach(k=>{
+    let arr=[]; try{ arr=JSON.parse(localStorage.getItem(k)||'[]'); if(!Array.isArray(arr)) arr=[]; }catch{ arr=[]; }
+    arr.push(card);
+    localStorage.setItem(k, JSON.stringify(arr));
+  });
+
+  alert('✅ Card *'+last4+' linked! You can now Add Money.');
+  if(window.updateAddMoneyButton) window.updateAddMoneyButton();
+  location.reload();
+};
+
+// Make Saved Cards header clickable to add card
+document.addEventListener('DOMContentLoaded', ()=>{
+  setTimeout(()=>{
+    let saved = [...document.querySelectorAll('div')].find(d=>d.textContent.trim()==='Saved Cards');
+    if(saved){
+      saved.style.cursor='pointer';
+      saved.title='Click to add card';
+      // Don't override, just add hint
+      let parent = saved.closest('div');
+      if(parent && !parent.querySelector('.addCardHint')){
+        let btn = document.createElement('button');
+        btn.className='addCardHint';
+        btn.innerText='+ Add Card';
+        btn.style.cssText='margin-left:auto;background:#1a1a1a;color:#fff;border:1px solid #333;padding:6px 12px;border-radius:8px;cursor:pointer';
+        btn.onclick = window.openAddCard;
+        saved.parentElement.style.display='flex';
+        saved.parentElement.appendChild(btn);
+      }
+    }
+  }, 1000);
+});
+
+// ===== STORE APPLICATION (SUPABASE) =====
+function setStoreApplicationMessage(message, type) {
+  const el = document.getElementById('storeApplicationStatus');
+  if (!el) return;
+  el.textContent = message;
+  el.style.color = type === 'error' ? '#ef4444' : type === 'success' ? '#22c55e' : 'var(--muted)';
+}
+
+function setStoreApplicationFormLocked(locked) {
+  ['apply_store_name', 'apply_owner_name', 'apply_store_phone', 'apply_store_address'].forEach(id => {
+    const field = document.getElementById(id);
+    if (field) field.disabled = locked;
+  });
+  const button = document.getElementById('submitStoreApplicationBtn');
+  if (button) {
+    button.disabled = locked;
+    button.textContent = locked ? 'Application Already Submitted' : 'Submit Store Application';
+    button.style.opacity = locked ? '0.6' : '1';
+    button.style.cursor = locked ? 'not-allowed' : 'pointer';
+  }
+}
+
+async function loadStoreApplicationStatus() {
+  const client = window.supabaseClient;
+  if (!client) {
+    setStoreApplicationMessage('Database connection unavailable. Please refresh and try again.', 'error');
+    return;
+  }
+  try {
+    const { data: userData, error: userError } = await client.auth.getUser();
+    if (userError || !userData?.user) {
+      setStoreApplicationMessage('Please sign in to submit a store application.', 'error');
+      setStoreApplicationFormLocked(true);
+      return;
+    }
+    const { data, error } = await client
+      .from('store_applications')
+      .select('id, status, store_name')
+      .eq('user_id', userData.user.id)
+      .maybeSingle();
+    if (error) throw error;
+    if (data) {
+      setStoreApplicationFormLocked(true);
+      const status = String(data.status || 'pending').toLowerCase();
+      const label = status.charAt(0).toUpperCase() + status.slice(1);
+      setStoreApplicationMessage(`You already submitted an application for "${data.store_name}". Current status: ${label}.`, status === 'rejected' ? 'error' : 'success');
+    } else {
+      setStoreApplicationFormLocked(false);
+      setStoreApplicationMessage('No store application submitted yet.', '');
+    }
+  } catch (error) {
+    console.error('Could not load store application:', error);
+    setStoreApplicationMessage('Could not check your application status. Please refresh the page.', 'error');
+  }
+}
+
+async function submitStoreApplication() {
+  const client = window.supabaseClient;
+  if (!client) {
+    setStoreApplicationMessage('Database connection unavailable. Check supabase.js and refresh.', 'error');
+    return;
+  }
+  const storeName = document.getElementById('apply_store_name')?.value.trim() || '';
+  const ownerName = document.getElementById('apply_owner_name')?.value.trim() || '';
+  const phone = document.getElementById('apply_store_phone')?.value.trim() || '';
+  const address = document.getElementById('apply_store_address')?.value.trim() || '';
+
+  if (!storeName || !ownerName || !phone || !address) {
+    setStoreApplicationMessage('Please complete all four fields before submitting.', 'error');
+    return;
+  }
+  if (storeName.length < 2 || ownerName.length < 2 || phone.replace(/\D/g, '').length < 7 || address.length < 5) {
+    setStoreApplicationMessage('Check your details. Store name and owner name must be at least 2 characters, phone must contain at least 7 digits, and address at least 5 characters.', 'error');
+    return;
+  }
+
+  const button = document.getElementById('submitStoreApplicationBtn');
+  if (button) { button.disabled = true; button.textContent = 'Submitting...'; }
+  setStoreApplicationMessage('Submitting your application...', '');
+
+  try {
+    const { data: userData, error: userError } = await client.auth.getUser();
+    if (userError || !userData?.user) throw new Error('Your session has expired. Please sign in again.');
+
+    const userId = userData.user.id;
+    const { data: existing, error: lookupError } = await client
+      .from('store_applications')
+      .select('id, status, store_name')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (lookupError) throw lookupError;
+    if (existing) {
+      setStoreApplicationFormLocked(true);
+      setStoreApplicationMessage(`You already submitted an application for "${existing.store_name}". Current status: ${existing.status}.`, 'success');
+      return;
+    }
+
+    const { error: insertError } = await client
+      .from('store_applications')
+      .insert({
+        user_id: userId,
+        store_name: storeName,
+        owner_name: ownerName,
+        phone: phone,
+        address: address
+      });
+    if (insertError) {
+      if (insertError.code === '23505') throw new Error('An application already exists for this account. Refresh the page to see its status.');
+      throw insertError;
+    }
+
+    setStoreApplicationFormLocked(true);
+    setStoreApplicationMessage('Your store application was submitted successfully and is now pending admin approval. Your account will remain a buyer until an administrator approves it.', 'success');
+  } catch (error) {
+    console.error('Store application submission failed:', error);
+    setStoreApplicationFormLocked(false);
+    setStoreApplicationMessage(error.message || 'Could not submit your application. Please try again.', 'error');
+  } finally {
+    const currentButton = document.getElementById('submitStoreApplicationBtn');
+    if (currentButton && currentButton.textContent === 'Submitting...') {
+      currentButton.disabled = false;
+      currentButton.textContent = 'Submit Store Application';
+    }
+  }
+}
+
+document.addEventListener('DOMContentLoaded', loadStoreApplicationStatus);
+
+</script>
+
+<!-- APP DOWNLOAD BAR - VISIBLE TO ALL USERS -->
+<div id="appInstallBar">
+  <div class="left">
+    <div class="icon">📲</div>
+    <div class="txt">
+      <b>Download App</b>
+      <span>Install for faster access • No Play Store</span>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center">
+    <button class="btn" onclick="installAppNow()">INSTALL</button>
+    <div class="close" onclick="dismissInstallBar()">✕</div>
+  </div>
+</div>
+
+
+<script src="role-switch.js"></script>
+<script src="rider-applications.js"></script>
+<script src="buyer-supabase.js"></script>
+<script src="buyer-alerts.js"></script>
+</body>
+</html>

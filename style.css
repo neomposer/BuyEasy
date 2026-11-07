@@ -1,0 +1,43 @@
+*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,Inter,-apple-system,Segoe UI,Roboto}
+body{background:#0f0f0f;color:#fff;min-height:100vh;transition:.3s}
+body.light{background:#f5f5f5;color:#111}
+
+.auth-container{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:16px}
+.auth-box{background:#fff;color:#111;width:100%;max-width:400px;border-radius:22px;padding:24px;box-shadow:0 10px 30px rgba(0,0,0,.3);border:1px solid #e9e9e9}
+body.light .auth-box{background:#fff}
+
+.bh-field{width:100%;padding:13px;border:1.5px solid #e9e9e9;border-radius:12px;margin-top:6px;background:#fff;color:#111;transition:.2s;outline:none}
+.bh-field:focus{border-color:#22c55e !important;box-shadow:0 0 0 3px rgba(34,197,94,.15)}
+body.dark .bh-field, .dash .bh-field{background:#111;border-color:#2a2a2a;color:#fff}
+
+.bh-label{font-size:10px;font-weight:800;margin-top:14px;display:block;text-transform:uppercase;letter-spacing:.5px;color:#888}
+body.light .bh-label{color:#666}
+
+.btn-primary{width:100%;padding:13px;background:#111;color:#fff;border:none;border-radius:12px;font-weight:800;margin-top:16px;cursor:pointer;transition:.2s}
+.btn-primary:active{transform:scale(.98)}
+.btn-secondary{width:100%;padding:13px;background:#fff;color:#111;border:1.5px solid #e9e9e9;border-radius:12px;font-weight:800;margin-top:10px;cursor:pointer;transition:.2s}
+.btn-secondary:active{transform:scale(.98)}
+
+.dash{padding:16px 16px 90px 16px;max-width:700px;margin:0 auto}
+.dash-header{background:#1a1a1a;border-radius:18px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;border:1px solid #2a2a2a;transition:.3s}
+body.light .dash-header{background:#fff;border-color:#e5e5e5}
+
+.card{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:18px;padding:18px;margin-top:16px;transition:.3s}
+body.light .card{background:#fff;border-color:#e5e5e5}
+
+.grid4{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+@media(max-width:500px){.grid4{grid-template-columns:1fr}}
+
+/* Leaflet map fix - dark friendly */
+.leaflet-container{background:#111 !important;border-radius:12px}
+.leaflet-tile{filter:brightness(.9) contrast(1.1)}
+body.light .leaflet-container{background:#e9e9e9 !important}
+body.light .leaflet-tile{filter:none}
+
+/* Bottom nav & overlays */
+#doneOverlay, #adminDone{backdrop-filter:blur(6px)}
+.order-tab::-webkit-scrollbar, .bottom-nav::-webkit-scrollbar{display:none}
+
+/* Green pulse for rider */
+.pulse{animation:pulse 1.5s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(34,197,94,.6)}70%{box-shadow:0 0 0 10px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}}
