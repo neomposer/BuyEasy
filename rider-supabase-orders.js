@@ -190,6 +190,7 @@
     const cutoff = Date.now() - 24 * 3600 * 1000;
     deliveries.filter(o => o.status === 'cancelled' && new Date(o.updated_at).getTime() > cutoff).forEach(o =>
       alertBus().alert({ id: 'cancel:' + o.id, icon: '❌', title: `Order ${o.order_number} was cancelled`, body: o.cancel_reason || 'This order was cancelled.', ring: true, actionLabel: 'OK' }));
+    if (deliveries.some(o => o.status === 'cancelled') && window.BuyEasyRatings) setTimeout(() => BuyEasyRatings.check(), 2500);
   }
   async function renderDeliveries() {
     try { await loadDeliveries(); cancelAlerts(); drawDeliveries(); trackingFeed(); }
@@ -231,7 +232,7 @@
       if (typeof window.setDelTab === 'function') window.setDelTab('history');
       busy = false; await Promise.all([renderJobs(), renderDeliveries(), updateStats(), renderHistory()]);
       goTab('deliveries', 'bnav-del');
-      if (window.BuyEasyRatings) setTimeout(() => BuyEasyRatings.check(true), 1500);
+      if (window.BuyEasyRatings) setTimeout(() => BuyEasyRatings.check(), 2500);
     } catch (e) { console.error(e); alert(e.message || 'Could not complete delivery.'); }
   }
   function trackOrder(id) { const o = deliveries.find(x => x.id === id); trackingFeed(); goTab('map', 'bnav-map'); }

@@ -32,7 +32,7 @@
             rejected: ['⚠️', 'Order declined', `Order ${n} was declined by the store.`, true]
           }[o.status];
           if (m) A().alert({ id: `buy:${o.id}:${o.status}`, icon: m[0], title: m[1], body: m[2], ring: m[3], actionLabel: m[3] ? 'View orders' : undefined, onAction: goOrders });
-          if (o.status === 'delivered' && window.BuyEasyRatings) setTimeout(() => BuyEasyRatings.check(true), 1500);
+          if (['delivered', 'cancelled'].includes(o.status) && window.BuyEasyRatings) setTimeout(() => BuyEasyRatings.check(), 2500);
           if (typeof window.renderOrders === 'function') window.renderOrders();
         }
         known[o.id] = o.status;

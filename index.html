@@ -118,6 +118,7 @@ body{background:var(--bg);color:var(--text);margin:0;font-family:Inter,system-ui
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
 <script src="supabase.js"></script>
 <script src="net-status.js"></script>
+<script>(function(){try{var id=localStorage.getItem("be_vid");if(!id){id=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():(Date.now()+"-"+Math.random().toString(36).slice(2,12));localStorage.setItem("be_vid",id);}if(window.supabaseClient)supabaseClient.rpc("track_visit",{p_visitor:id}).then(function(){},function(){});}catch(e){}})();</script>
 <script src="auth.js"></script>
 <script>
 let curAuth = 'login';

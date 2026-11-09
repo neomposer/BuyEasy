@@ -29,8 +29,8 @@
           if (!first || prev !== undefined) {
             if (o.status === 'assigned') A().alert({ id: `ord:${o.id}:assigned`, icon: '🏍️', title: 'Rider accepted', body: `A rider is coming to collect order ${o.order_number}.`, ring: false });
             if (o.status === 'picked_up') A().alert({ id: `ord:${o.id}:picked`, icon: '📦', title: 'Order picked up', body: `Order ${o.order_number} was collected by the rider.`, ring: false });
-            if (o.status === 'delivered') { A().alert({ id: `ord:${o.id}:delivered`, icon: '✅', title: 'Order delivered', body: `Order ${o.order_number} was delivered.`, ring: false }); if (window.BuyEasyRatings) setTimeout(() => BuyEasyRatings.check(true), 1500); }
-            if (o.status === 'cancelled') A().alert({ id: `ord:${o.id}:cancelled`, icon: '❌', title: 'Order cancelled', body: `Order ${o.order_number} was cancelled.`, ring: true, actionLabel: 'OK' });
+            if (o.status === 'delivered') { A().alert({ id: `ord:${o.id}:delivered`, icon: '✅', title: 'Order delivered', body: `Order ${o.order_number} was delivered.`, ring: false }); if (window.BuyEasyRatings) setTimeout(() => BuyEasyRatings.check(), 2500); }
+            if (o.status === 'cancelled') { A().alert({ id: `ord:${o.id}:cancelled`, icon: '❌', title: 'Order cancelled', body: `Order ${o.order_number} was cancelled.`, ring: true, actionLabel: 'OK' }); if (window.BuyEasyRatings) setTimeout(() => BuyEasyRatings.check(), 2500); }
           }
         }
         known[o.id] = o.status;

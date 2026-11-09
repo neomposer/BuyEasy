@@ -54,7 +54,7 @@
     if (lat) lat.value = data.buyer_latitude ?? local.lat ?? '';
     if (lng) lng.value = data.buyer_longitude ?? local.lng ?? '';
     if (data.full_name && $('buyerName')) $('buyerName').textContent = data.full_name;
-    if (data.buyer_latitude != null && data.buyer_longitude != null && typeof buyerLatLng !== 'undefined') buyerLatLng = [data.buyer_latitude, data.buyer_longitude];
+    if (data.buyer_latitude != null && data.buyer_longitude != null && typeof buyerLatLng !== 'undefined') buyerLatLng = [data.buyer_latitude, data.buyer_longitude]; if (window.applyBuyerRange) window.applyBuyerRange();
     const { data: store, error: storeError } = await db.from('stores').select('id,is_approved').eq('owner_id', user.id).maybeSingle();
     if (storeError) throw storeError;
     const { data: riderApps, error: riderError } = await db.from('rider_applications').select('id').eq('user_id', user.id).eq('status', 'approved').limit(1);
@@ -76,17 +76,21 @@
     }
     return {};
   }
+  const MAX_KM = 15;   // stores further than this from the buyer are hidden
+  const inRange = p => { const ll = (typeof buyerLatLng !== 'undefined') ? buyerLatLng : null; if (!ll || p.storeLat == null || p.storeLng == null) return false; return window.haversine(ll[0], ll[1], Number(p.storeLat), Number(p.storeLng)) <= MAX_KM; };
+  window.applyBuyerRange = () => { if (!state.all) return; state.products = state.all.filter(inRange); if (typeof globalProducts !== 'undefined') globalProducts = state.products.slice(); ['renderShop', 'renderFavs', 'renderPopularProducts'].forEach(n => { if (typeof window[n] === 'function') window[n](); }); };
   async function loadCatalogue() {
     await auth();
     const { data, error } = await db.from('buyer_catalogue').select('*').order('created_at', { ascending: false });
     if (error) throw error;
-    state.products = (data || []).map(row => ({
+    state.all = (data || []).map(row => ({
       id: row.product_id, productId: row.product_id, storeId: row.store_id,
       storeEmail: row.store_id, storeName: row.store_name || 'Store', storePhone: row.store_phone || '',
       storeAddr: row.store_address || '', storeLat: row.store_latitude, storeLng: row.store_longitude,
       online: !!row.is_online, name: row.name, price: Number(row.price), qty: Number(row.quantity),
       img: row.image_url || '', media: Array.isArray(row.media) ? row.media : [], description: row.description || ''
     }));
+    state.products = state.all.filter(inRange);
     await loadFavourites();
     if (typeof globalProducts !== 'undefined') globalProducts = state.products.slice();
     if (typeof window.renderShop === 'function') window.renderShop();
@@ -114,7 +118,7 @@
     if (typeof globalProducts !== 'undefined') globalProducts = rows;
     if ($('allProductsTitle')) $('allProductsTitle').textContent = `🛒 Products • ${rows.length}`;
     if ($('shopSub')) $('shopSub').textContent = `${rows.length} results${buyerLatLng ? ' • Stores near you first' : ' • Save GPS to see nearest'}`;
-    if (!rows.length) { list.innerHTML = '<p style="color:var(--muted);font-size:11px;grid-column:1/3;text-align:center;padding:20px">No products found</p>'; return; }
+    if (!rows.length) { list.innerHTML = '<p style="color:var(--muted);font-size:11px;grid-column:1/3;text-align:center;padding:20px">'+((typeof buyerLatLng!=='undefined'&&buyerLatLng)?'No products found within 15 km of you':'📍 Set your delivery location in Settings to see stores within 15 km of you')+'</p>'; return; }
     list.innerHTML = rows.map((p, index) => {
       const media = p.media.length ? p.media : (p.img ? [{type:'image',src:p.img}] : []);
       const first = media[0]?.src || p.img;
@@ -252,7 +256,7 @@
       const values={full_name:$('b_name')?.value.trim()||'',phone:$('b_phone')?.value.trim()||'',delivery_address:$('b_addr')?.value.trim()||'',buyer_latitude:$('b_lat')?.value?Number($('b_lat').value):null,buyer_longitude:$('b_lng')?.value?Number($('b_lng').value):null};
       if(!values.full_name||!values.phone||!values.delivery_address||values.buyer_latitude===null||values.buyer_longitude===null) throw new Error('Please enter your name, phone, address and delivery pin.');
       const {error}=await db.from('profiles').update(values).eq('id',user.id); if(error) throw error;
-      state.profile={...state.profile,...values}; if(typeof buyerLatLng!=='undefined') buyerLatLng=[values.buyer_latitude,values.buyer_longitude];
+      state.profile={...state.profile,...values}; if(typeof buyerLatLng!=='undefined') buyerLatLng=[values.buyer_latitude,values.buyer_longitude]; if(window.applyBuyerRange) window.applyBuyerRange();
       if($('buyerName')) $('buyerName').textContent=values.full_name; msg('Delivery details saved.');
     } catch(error) { fail(error); }
   }

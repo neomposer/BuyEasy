@@ -12,6 +12,9 @@
 <script src="net-status.js"></script>
 <script src="alerts.js"></script>
 <script src="ratings.js"></script>
+<script src="activity.js"></script>
+<script src="support.js"></script>
+
 <script>try{for(let i=localStorage.length-1;i>=0;i--){let k=localStorage.key(i)||"";if(k==="v2_saved_cards"||k==="bhv2_cards"||k.startsWith("v2_cards_")||k.startsWith("v2_saved_cards_")||k.startsWith("v2_buyer_cards_")||k.startsWith("bhv2_cards_"))localStorage.removeItem(k);}}catch(e){console.warn("Could not clear old BUYEasy card cache",e);}</script>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -410,7 +413,7 @@ function getBuyerLocation(){
   status.textContent='📡 Getting GPS...';
   navigator.geolocation.getCurrentPosition(pos=>{
     let lat=pos.coords.latitude, lng=pos.coords.longitude;
-    document.getElementById('b_lat').value=lat.toFixed(6); document.getElementById('b_lng').value=lng.toFixed(6); buyerLatLng=[lat,lng];
+    document.getElementById('b_lat').value=lat.toFixed(6); document.getElementById('b_lng').value=lng.toFixed(6); buyerLatLng=[lat,lng]; if(window.applyBuyerRange)applyBuyerRange();
     status.textContent=`✓ GPS: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
     if(buyerMap){ buyerMarker.setLatLng([lat,lng]); buyerMap.setView([lat,lng],16); } else { initBuyerMap(); }
     renderShop();
@@ -1326,5 +1329,6 @@ document.addEventListener('DOMContentLoaded', loadStoreApplicationStatus);
 <script src="rider-applications.js"></script>
 <script src="buyer-supabase.js"></script>
 <script src="buyer-alerts.js"></script>
+<script>document.addEventListener("DOMContentLoaded",function(){ if(window.BuyEasyHelp) BuyEasyHelp.mount("settings","buyer"); });</script>
 </body>
 </html>

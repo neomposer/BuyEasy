@@ -79,6 +79,8 @@ body {
 
     const user = userData.user;
 
+    try { const vid = localStorage.getItem("be_vid"); if (vid) await window.supabaseClient.rpc("link_visitor", { p_visitor: vid }); } catch (e) { /* tracking is optional */ }
+
     // Retrieve the user's actual database role.
     const { data: profile, error: profileError } =
       await window.supabaseClient
