@@ -5,6 +5,7 @@
 <title>BuyEasy — Rider</title>
 <link rel="manifest" href="manifest.json"><meta name="theme-color" content="#22c55e"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="apple-touch-icon.png">
 
+<link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="mobile.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -106,6 +107,8 @@ body.light{--bg:#f5f5f5;--card:#fff;--card2:#fff;--card3:#f9f9f9;--border:#e5e5e
 .brand-left{font-weight:900;font-size:18px;letter-spacing:-.5px;display:flex;align-items:center;gap:6px}
 .brand-logo{background:#22c55e;color:#111;padding:2px 7px;border-radius:8px;font-size:14px}
 </style>
+<link rel="stylesheet" href="polish.css">
+<script src="polish.js"></script>
 </head>
 <body>
 <div id="brandHeader"><div class="brand-left"><span class="brand-logo">🛒</span> BuyEasy</div><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><div style="font-size:10px;color:var(--muted);font-weight:800">RIDER • DELIVER LOCAL</div><button onclick="switchDashboardRole('buyer','buyer-dashboard.html')" class="pill">🛍️ Buyer</button><button id="riderStoreSwitch" style="display:none" onclick="switchDashboardRole('store','store-dashboard.html')" class="pill">🏪 Store</button></div></div>
@@ -133,7 +136,7 @@ body.light{--bg:#f5f5f5;--card:#fff;--card2:#fff;--card3:#f9f9f9;--border:#e5e5e
   <div id="jobs" class="section active">
     <div class="jobs-hero"><h2>🏍️ Jobs</h2><p>Go Online (switch at the top). New orders from stores that approved you ring here.</p><input id="jobSearch" oninput="renderJobs()" placeholder="🔍 Search store, customer..." class="bh-field" style="margin-top:12px;padding:12px"></div>
     <div class="mini-card" style="padding:14px;margin:12px 0"><div id="myStoresPanel"><p class="status">Loading your stores…</p></div></div>
-    <div id="jobsList" class="job-grid"></div>
+    <div id="jobsList" class="job-grid"><div class="be-skel"><i></i><i></i></div></div>
   </div>
 
   <div id="map" class="section">

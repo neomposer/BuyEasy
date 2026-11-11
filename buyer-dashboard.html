@@ -180,6 +180,8 @@ body.light #brandHeader{background:#fff}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
 
+<link rel="stylesheet" href="polish.css">
+<script src="polish.js"></script>
 </head>
 <body>
 <!-- BRAND HEADER - ALWAYS VISIBLE -->
@@ -211,6 +213,7 @@ body.light #brandHeader{background:#fff}
       <h2>🛒 Shop</h2>
       <p id="shopSub">Fresh from local stores near you</p>
       <input id="shopSearch" oninput="renderShop()" placeholder="🔍 Search bread, amasi, shop..." class="bh-field" style="margin-top:10px;padding:12px;font-size:12px">
+      <button type="button" class="be-chip" onclick="openTab('favs',document.getElementById('bnav-shop'))">❤️ My favourites</button>
       <!-- NEAREST ONLINE FIRST LINE -->
       <div class="shop-section-title" style="margin-top:12px"><h3>📍 Nearest Online Stores</h3><button onclick="openAllStores()">🏪 All Stores</button></div>
       <div id="nearestStores" class="nearest-bar"></div>
@@ -221,7 +224,7 @@ body.light #brandHeader{background:#fff}
       <div id="storeChips" class="store-chips"></div>
     </div>
     <div class="shop-section-title"><h3 id="allProductsTitle">🛒 All Products</h3></div>
-    <div id="shopList" class="prod-grid"></div>
+    <div id="shopList" class="prod-grid"><div class="be-skel"><i></i><i></i></div></div>
   </div>
 
   <div id="cart" class="section">
@@ -306,9 +309,8 @@ body.light #brandHeader{background:#fff}
   <div class="bnav-tab active" id="bnav-shop" onclick="openTab('shop',this)">🛒 Shop</div>
   <div class="bnav-tab" id="bnav-cart" onclick="openTab('cart',this)">🧺 Cart <span id="cartTopCount2"></span></div>
   <div class="bnav-tab" onclick="openTab('orders',this)">📦 Orders</div>
-  <div class="bnav-tab" onclick="openTab('favs',this)">❤️ Favs</div>
   <div class="bnav-tab" onclick="openTab('money',this)">💰 Money</div>
-  <div class="bnav-tab" onclick="openTab('settings',this)">⚙️ Settings</div>
+  <div class="bnav-tab" id="bnav-settings" onclick="openTab('settings',this)">⚙️ Settings</div>
 </div>
 
 <div id="storeModal" class="modal" onclick="if(event.target.id==='storeModal') closeStoreModal()">
@@ -382,7 +384,7 @@ function showDone(msg){ if(window.Utils && Utils.done){ Utils.done(msg); return;
 function openTab(id,el){
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.bnav-tab').forEach(t=>t.classList.remove('active'));
-  document.getElementById(id).classList.add('active'); el.classList.add('active');
+  document.getElementById(id).classList.add('active'); if(el)el.classList.add('active');
   if(id==='settings'){ setTimeout(()=>initBuyerMap(),300); }
   if(id==='cart'){ updateDeliveryPreview(); }
   if(id==='favs'){ renderFavs(); }

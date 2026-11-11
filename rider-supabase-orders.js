@@ -117,10 +117,10 @@
     const q = (document.getElementById('jobSearch')?.value || '').trim().toLowerCase();
     const rows = jobs.filter(o => `${o.order_number} ${o.customer_name} ${o.stores?.store_name} ${(o.order_items || []).map(i => i.product_name).join(' ')}`.toLowerCase().includes(q));
     const top = document.getElementById('jobCountTop'); if (top) top.textContent = rows.length + ' jobs';
-    if (!online) { el.innerHTML = '<p style="padding:20px;text-align:center;color:var(--muted)">You are <b>offline</b>. Tap the switch at the top to go <b>Online</b> and receive jobs.</p>'; return; }
+    if (!online) { el.innerHTML = beEmpty('🌙',"You're offline",'Tap the switch at the top to go Online and start receiving jobs.'); return; }
     if (!rows.length) { el.innerHTML = myStores.some(s => s.status === 'approved')
-      ? '<p style="padding:20px;text-align:center;color:var(--muted)">No incoming jobs right now. This phone will ring when a store has an order ready.</p>'
-      : '<p style="padding:20px;text-align:center;color:var(--muted)">You are not approved by any store yet. Ask a store under <b>My Stores</b> above.</p>'; return; }
+      ? beEmpty('🏍️','No jobs right now','Your phone will ring when one of your stores has an order ready.')
+      : beEmpty('🏪','No stores yet','Ask a store under My Stores above to work for it. You only see orders from stores that approve you.'); return; }
     el.innerHTML = rows.map(o => {
       const items = (o.order_items || []).map(i => `${esc(i.product_name)} × ${Number(i.quantity) || 0}`).join(', ');
       return `<div class="job-card"><div class="job-top"><b>${esc(o.stores?.store_name || 'Store')} • ${esc(o.order_number)}</b><b>${money(o.total)}</b></div>
@@ -163,7 +163,7 @@
       el.innerHTML = history.length ? history.map(o => `<div class="hist-item"><div><b>${esc(o.customer_name)} • ${money(o.total)}</b>
         <div class="status">${esc(o.order_number)} • ${esc(o.stores?.store_name || '')}</div><div class="status">${when(o.updated_at)}</div>
         ${o.status === 'cancelled' ? `<div class="status" style="color:#ef4444">Cancelled${o.cancel_reason ? ': ' + esc(o.cancel_reason) : ''}</div>` : `<div class="status" style="color:#22c55e">Delivered • You earned ${money(o.rider_net)}</div>`}</div></div>`).join('')
-        : '<p class="status">No completed deliveries yet.</p>';
+        : beEmpty('✅','No completed deliveries yet','Finished deliveries will show here.');
       return;
     }
     el.innerHTML = active.length ? active.map(o => {
@@ -178,7 +178,7 @@
           <button class="btn-white" onclick="trackOrder('${esc(o.id)}')">🗺️ Track route</button>
           ${toStore ? `<button class="btn-green" onclick="markPickedUp('${esc(o.id)}')">📦 Picked up</button>` : `<button class="btn-green" onclick="completeDel('${esc(o.id)}')">✅ Delivered</button>`}
         </div></div>`;
-    }).join('') : '<p class="status">No active deliveries. Accept a job from the Jobs tab.</p>';
+    }).join('') : beEmpty('📦','No active deliveries','Accept a job from the Jobs tab and it will appear here.');
   }
   function trackingFeed() {
     const a = deliveries.find(o => ['assigned', 'picked_up'].includes(o.status));

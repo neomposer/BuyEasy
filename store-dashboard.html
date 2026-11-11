@@ -70,6 +70,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .status{font-size:11px;color:var(--muted);margin-top:8px}
 .store-cash-badge{margin:8px 0;padding:9px 12px;border-radius:12px;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.45);color:#f59e0b;font-size:12px;font-weight:800}
 </style>
+<link rel="stylesheet" href="polish.css">
+<script src="polish.js"></script>
 </head>
 <body>
 <div id="brandHeader"><div class="brand-left"><span class="brand-logo">🛒</span> BuyEasy</div><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><div style="font-size:10px;color:var(--muted);font-weight:800">STORE • SELL LOCAL</div><button onclick="switchDashboardRole('buyer','buyer-dashboard.html')" class="pill">🛍️ Buyer</button><button id="storeRiderSwitch" style="display:none" onclick="switchDashboardRole('rider','rider-dashboard.html')" class="pill">🏍️ Rider</button></div></div>
@@ -103,7 +105,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
    <button class="order-tab" data-status="picked_up" onclick="switchOrderTab('picked_up',this)">On Delivery</button>
    <button class="order-tab" data-status="history" onclick="switchOrderTab('history',this)">History</button>
   </div>
-  <div class="mini-card"><div class="mini-head" onclick="toggleMini('ordersInner')">Orders List <span id="orderCount" class="pill">0</span></div><div id="ordersInner" class="mini-body open"><div id="ordersList"></div></div></div>
+  <div class="mini-card"><div class="mini-head" onclick="toggleMini('ordersInner')">Orders List <span id="orderCount" class="pill">0</span></div><div id="ordersInner" class="mini-body open"><div id="ordersList"><div class="be-skel"><i></i><i></i></div></div></div></div>
   <div class="notice">Accept each new order, then mark it ready when the items are prepared. A rider can pick it up after that.</div>
  </div>
 
@@ -669,8 +671,8 @@ function renderOrders() {
   });
   $('orderCount').textContent = filtered.length;
   const activeCount = cachedOrders.filter(order => !['delivered','cancelled','rejected'].includes(order.status)).length;
-  $('bnavCount').textContent = activeCount ? `(${activeCount})` : '';
-  if (!filtered.length) { $('ordersList').innerHTML = '<p class="status">No orders in this category.</p>'; return; }
+  $("bnavCount").textContent = activeCount ? String(activeCount) : "";
+  if (!filtered.length) { $('ordersList').innerHTML = beEmpty('📥','No orders here','New orders will ring your phone and appear in this list.'); return; }
 
   $('ordersList').innerHTML = filtered.map(order => {
     const items = (order.order_items || []).map(item => `${escapeHTML(item.product_name)} × ${Number(item.quantity)}`).join(', ') || 'Items unavailable';
