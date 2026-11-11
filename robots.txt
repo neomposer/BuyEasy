@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Sitemap: https://buyeasy-shop.netlify.app/sitemap.xml

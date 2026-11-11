@@ -43,6 +43,7 @@
       <input id="bhSub" maxlength="120" placeholder="Subject (e.g. Problem with my order)">
       <textarea id="bhMsg" maxlength="2000" placeholder="Describe the problem. Include the order number if you have one."></textarea>
       <div class="beh-row"><button class="beh-go" id="bhSend">Send message</button></div>
+      ${window.BUYEASY ? `<a href="${window.BUYEASY.waLink('Hi BuyEasy support, I need help with my account.')}" target="_blank" rel="noopener" style="display:block;text-align:center;margin-top:10px;padding:12px;border-radius:12px;background:#25D366;color:#04210f;font-weight:800;text-decoration:none">💬 Chat on WhatsApp (${window.BUYEASY.whatsappDisplay})</a>` : ''}
       <div style="font-weight:900;margin-top:18px">My messages</div><div id="bhList"><p style="color:#9a9a9a;font-size:12px">Loading…</p></div>`);
     modal.querySelector('#bhX').onclick = hide;
     modal.querySelector('#bhSend').onclick = async () => {

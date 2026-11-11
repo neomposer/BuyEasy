@@ -8,7 +8,16 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="icon" href="/icon-192.png"><meta name="apple-mobile-web-app-title" content="BuyEasy">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>BuyEasy — Login</title>
+<title>BuyEasy | Local Shopping &amp; Delivery in Nkomazi</title>
+<meta name="description" content="BuyEasy connects Nkomazi shoppers with approved local stores and riders. Order online, pay cash on delivery or with your wallet, and get it delivered to your door.">
+<meta name="robots" content="index,follow">
+<meta name="keywords" content="Nkomazi delivery, Nkomazi online shopping, local stores Nkomazi, Mpumalanga delivery, BuyEasy">
+<meta property="og:type" content="website"><meta property="og:site_name" content="BuyEasy">
+<meta property="og:title" content="BuyEasy | Local Shopping &amp; Delivery in Nkomazi">
+<meta property="og:description" content="Order from approved local stores and get it delivered to your door in Nkomazi.">
+<meta property="og:image" content="https://buyeasy-shop.netlify.app/icon-512.png">
+<meta name="twitter:card" content="summary">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"BuyEasy","url":"https://buyeasy-shop.netlify.app/","logo":"https://buyeasy-shop.netlify.app/icon-512.png","description":"Local shopping and delivery marketplace serving Nkomazi, Mpumalanga.","areaServed":{"@type":"AdministrativeArea","name":"Nkomazi, Mpumalanga, South Africa"},"contactPoint":{"@type":"ContactPoint","telephone":"+27711511389","contactType":"customer support","availableLanguage":["English"]}}</script>
 <link rel="stylesheet" href="style.css">
 <style>
 /* APP DOWNLOAD BAR */
@@ -65,14 +74,81 @@ body{background:var(--bg);color:var(--text);margin:0;font-family:Inter,system-ui
 .b-close{background:rgba(239,68,68,.12);color:#ef4444;border-color:rgba(239,68,68,.2)}
 .dist{font-size:9px;color:#22c55e;background:rgba(34,197,94,.12);padding:3px 6px;border-radius:999px;border:1px solid rgba(34,197,94,.2);font-weight:800}
 .helper{font-size:11px;color:var(--muted);line-height:1.5;margin:10px 0 0}
+
+/* ===== LANDING ===== */
+html{scroll-behavior:smooth}
+body{padding:0 0 90px!important;align-items:stretch!important}
+.wrap{width:100%;max-width:1040px;margin:0 auto;padding:0 18px}
+.nav{position:sticky;top:0;z-index:50;background:rgba(8,10,14,.82);backdrop-filter:blur(14px);border-bottom:1px solid rgba(255,255,255,.06)}
+.nav .wrap{display:flex;align-items:center;justify-content:space-between;height:60px}
+.nav .brand{margin:0}.nav-links{display:none;gap:22px;font-size:13px;font-weight:700}
+.nav-links a{color:var(--muted);text-decoration:none}.nav-links a:hover{color:#fff}
+@media(min-width:760px){.nav-links{display:flex}}
+.nav-cta{background:var(--green);color:#04210f;border:0;border-radius:999px;padding:10px 18px;font-weight:900;font-size:13px;cursor:pointer}
+.hero{display:grid;grid-template-columns:1fr;gap:28px;padding:34px 0 10px;align-items:center}
+@media(min-width:900px){.hero{grid-template-columns:1.1fr .9fr;gap:44px;padding:56px 0 20px}}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:800;color:#4ade80;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.25);padding:7px 12px;border-radius:999px}
+.hero h1{font-size:clamp(32px,6.4vw,54px);line-height:1.04;margin:16px 0 14px;letter-spacing:-1.6px;font-weight:900}
+.hero h1 em{font-style:normal;color:var(--green)}
+.hero p.lead{font-size:16px;line-height:1.6;color:#b4bccd;margin:0 0 20px;max-width:520px}
+.cta-row{display:flex;gap:10px;flex-wrap:wrap}
+.cta{padding:14px 22px;border-radius:14px;font-weight:900;font-size:14px;cursor:pointer;border:0;text-decoration:none;display:inline-block}
+.cta.p{background:var(--green);color:#04210f}.cta.s{background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.14)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px;font-size:12px;color:#c8d0df;font-weight:700}
+.chips span{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);padding:7px 11px;border-radius:999px}
+#auth{scroll-margin-top:80px}.hero .box{margin:0 auto}
+section.blk{padding:46px 0 6px}
+.kick{font-size:11px;font-weight:900;letter-spacing:1.6px;text-transform:uppercase;color:var(--green)}
+.blk h2{font-size:clamp(24px,4.4vw,34px);margin:8px 0 10px;letter-spacing:-.8px;font-weight:900}
+.blk .intro{color:#aab3c5;font-size:15px;line-height:1.6;max-width:640px;margin:0 0 20px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.card-l{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:20px}
+.card-l .n{width:34px;height:34px;border-radius:50%;background:rgba(34,197,94,.15);color:#4ade80;display:grid;place-items:center;font-weight:900;margin-bottom:12px}
+.card-l h3{margin:0 0 6px;font-size:16px;font-weight:900}.card-l p{margin:0;color:#aab3c5;font-size:13.5px;line-height:1.55}
+.split{display:grid;grid-template-columns:1fr;gap:12px}@media(min-width:800px){.split{grid-template-columns:1fr 1fr}}
+.panel{background:linear-gradient(160deg,rgba(34,197,94,.10),rgba(255,255,255,.03));border:1px solid rgba(34,197,94,.22);border-radius:24px;padding:24px}
+.panel h3{margin:0 0 4px;font-size:20px;font-weight:900}.panel ul{list-style:none;padding:0;margin:14px 0 18px}
+.panel li{padding:7px 0 7px 26px;position:relative;font-size:14px;color:#cfd6e4;line-height:1.5}.panel li:before{content:"✓";position:absolute;left:0;color:#22c55e;font-weight:900}
+.faq details{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px 18px;margin-bottom:10px}
+.faq summary{cursor:pointer;font-weight:800;font-size:15px;list-style:none;display:flex;justify-content:space-between;gap:10px}
+.faq summary::-webkit-details-marker{display:none}.faq summary:after{content:"+";color:var(--green);font-size:20px;line-height:1}
+.faq details[open] summary:after{content:"–"}.faq details p{margin:10px 0 0;color:#aab3c5;font-size:14px;line-height:1.6}
+.contact{background:linear-gradient(160deg,#0f3d22,#0b1410);border:1px solid rgba(34,197,94,.3);border-radius:26px;padding:28px;text-align:center;margin-top:44px}
+.contact h2{margin:0 0 8px;font-size:26px;font-weight:900}.contact p{margin:0 0 18px;color:#bfd0c5}
+.wa-btn{display:inline-flex;align-items:center;gap:10px;background:#25D366;color:#04210f;font-weight:900;padding:14px 22px;border-radius:14px;text-decoration:none;font-size:15px}
+footer.site{margin-top:44px;border-top:1px solid rgba(255,255,255,.08);padding:26px 0 10px;color:var(--muted);font-size:12.5px}
+footer.site .wrap{display:flex;flex-wrap:wrap;gap:12px 22px;justify-content:space-between}
+footer.site a{color:#aab3c5;text-decoration:none;margin-right:16px}footer.site a:hover{color:#fff}
+.fab-wa{position:fixed;right:16px;bottom:86px;width:56px;height:56px;border-radius:50%;background:#25D366;display:grid;place-items:center;box-shadow:0 10px 28px rgba(0,0,0,.45);z-index:60}
+.waitlist{border:1px dashed rgba(34,197,94,.4);background:rgba(34,197,94,.07);border-radius:20px;padding:22px;text-align:center}
+.waitlist b{display:block;font-size:17px;margin-bottom:6px}.waitlist p{margin:0 0 14px;color:#b4bccd;font-size:13.5px;line-height:1.55}
+.near{max-width:none!important;margin-top:0!important}
 </style>
 </head>
 <body>
 <div class="bg"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div></div>
 
-<div class="box">
+<header class="nav"><div class="wrap">
   <div class="brand"><div class="brand-icon">B</div><h2>BuyEasy</h2></div>
-  <p class="sub">Fast • Local • Delivered — stores near you</p>
+  <nav class="nav-links"><a href="#how">How it works</a><a href="#sell">Sell</a><a href="#deliver">Deliver</a><a href="#faq">FAQ</a><a href="#contact">Contact</a></nav>
+  <button class="nav-cta" type="button" onclick="openAuth('login')">Log in</button>
+</div></header>
+
+<main class="wrap">
+  <section class="hero">
+    <div>
+      <span class="eyebrow">📍 Now launching in Nkomazi</span>
+      <h1>Local shopping in Nkomazi, <em>delivered to your door.</em></h1>
+      <p class="lead">Order from approved stores near you and have it brought to you by local riders. Pay cash on delivery or with your BuyEasy wallet.</p>
+      <div class="cta-row">
+        <button class="cta p" type="button" onclick="openAuth('register')">Create free account</button>
+        <a class="cta s" href="#sell">Sell or deliver with us</a>
+      </div>
+      <div class="chips"><span>✔ Stores approved by BuyEasy</span><span>✔ Cash or wallet</span><span>✔ Rated by real customers</span></div>
+    </div>
+    <div class="box" id="auth">
+  <div class="brand"><div class="brand-icon">B</div><h2>BuyEasy</h2></div>
+  <p class="sub">Create a free account or log in</p>
 
   <div class="tab">
     <div id="tabLogin" class="active" onclick="switchAuth('login')">Login</div>
@@ -81,7 +157,7 @@ body{background:var(--bg);color:var(--text);margin:0;font-family:Inter,system-ui
 
   <div id="loginForm">
     <label class="bh-label" for="l_email">Email</label>
-    <input id="l_email" type="email" autocomplete="username" class="bh-field" placeholder="you@example.com">
+    <input id="l_email" type="email" autocomplete="username" class="bh-field" placeholder="Your email address">
     <label class="bh-label" for="l_pass">Password</label>
     <input id="l_pass" type="password" autocomplete="current-password" class="bh-field" placeholder="Enter password">
     <button id="loginButton" onclick="login()" class="btn-white">Login</button>
@@ -90,7 +166,7 @@ body{background:var(--bg);color:var(--text);margin:0;font-family:Inter,system-ui
 
   <div id="registerForm" style="display:none">
     <label class="bh-label" for="r_email">Email</label>
-    <input id="r_email" type="email" autocomplete="email" class="bh-field" placeholder="you@example.com">
+    <input id="r_email" type="email" autocomplete="email" class="bh-field" placeholder="Your email address">
     <label class="bh-label" for="r_pass">Password</label>
     <input id="r_pass" type="password" autocomplete="new-password" class="bh-field" placeholder="Enter password" minlength="8" required>
     <label class="bh-label" for="r_confirm_pass">Confirm Password</label>
@@ -108,14 +184,101 @@ body{background:var(--bg);color:var(--text);margin:0;font-family:Inter,system-ui
   <div id="msg" role="status" aria-live="polite"></div>
 </div>
 
-<!-- NEARBY STORES -->
-<div class="near">
-  <div class="near-head"><h3><span class="dot"></span> Stores near you</h3><span id="locInfo" style="font-size:10px;color:var(--muted)">Loading stores…</span></div>
-  <div id="nearGrid" class="near-grid"></div>
-  <div id="nearEmpty" style="display:none;font-size:11px;color:var(--muted);text-align:center;padding:12px;border:1px dashed var(--border);border-radius:12px">No approved stores available yet. Create a Buyer account to shop or apply to become a Store owner or Rider.</div>
-</div>
+
+  </section>
+
+  <section class="blk" id="stores">
+    <div class="near">
+      <div class="near-head"><h3><span class="dot"></span> Stores near you</h3><span id="locInfo" style="font-size:10px;color:var(--muted)">Loading stores…</span></div>
+      <div id="nearGrid" class="near-grid"></div>
+      <div id="nearEmpty" style="display:none" class="waitlist">
+        <b>🚀 BuyEasy is launching in Nkomazi</b>
+        <p>Local stores are joining right now. Create your free account and we will be ready when your favourite store goes live. Own a store? Be one of the first to sell on BuyEasy.</p>
+        <div class="cta-row" style="justify-content:center">
+          <button class="cta p" type="button" onclick="openAuth('register')">Create free account</button>
+          <a class="cta s" target="_blank" rel="noopener" id="waWaitlist" href="#">Tell us you are interested</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="blk" id="how">
+    <div class="kick">For shoppers</div><h2>How BuyEasy works</h2>
+    <p class="intro">Three simple steps from tapping to your front door.</p>
+    <div class="cards">
+      <div class="card-l"><div class="n">1</div><h3>Create your account</h3><p>Sign up free and save your delivery location so we can show you stores within 15&nbsp;km.</p></div>
+      <div class="card-l"><div class="n">2</div><h3>Choose and order</h3><p>Pick products from a nearby store and pay cash on delivery or from your BuyEasy wallet.</p></div>
+      <div class="card-l"><div class="n">3</div><h3>Get it delivered</h3><p>A local rider collects your order and brings it to you. You get an alert at every step, then rate your experience.</p></div>
+    </div>
+  </section>
+
+  <section class="blk" id="sell">
+    <div class="split">
+      <div class="panel" id="sellPanel">
+        <div class="kick">For stores</div><h3>Sell on BuyEasy</h3>
+        <ul>
+          <li>Reach buyers around Nkomazi without running your own delivery.</li>
+          <li>Add your products and prices in minutes.</li>
+          <li>You choose the riders you trust. Only riders you approve can deliver your orders.</li>
+          <li>Your phone rings when a new order arrives.</li>
+          <li>Track your sales and ratings in your dashboard.</li>
+        </ul>
+        <p style="font-size:13px;color:#aab3c5;margin:0 0 14px"><b style="color:#fff">How to start:</b> create an account, then apply to become a store. We review every application before you go live.</p>
+        <button class="cta p" type="button" onclick="openAuth('register')">Create account &amp; apply</button>
+      </div>
+      <div class="panel" id="deliver">
+        <div class="kick">For riders</div><h3>Deliver with BuyEasy</h3>
+        <ul>
+          <li>Earn from R10 per delivery, plus extra for distance, bad weather, evenings and Sundays.</li>
+          <li>Choose the stores you want to work for.</li>
+          <li>Go online when you are ready and offline when you are not.</li>
+          <li>Navigate with Google Maps, and call or WhatsApp the customer from the app.</li>
+          <li>Build a reputation with customer ratings.</li>
+        </ul>
+        <p style="font-size:13px;color:#aab3c5;margin:0 0 14px"><b style="color:#fff">How to start:</b> create an account, then apply as a rider with your details. We review every application.</p>
+        <button class="cta p" type="button" onclick="openAuth('register')">Create account &amp; apply</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="blk" id="trust">
+    <div class="kick">Why BuyEasy</div><h2>Local, checked and accountable</h2>
+    <div class="cards">
+      <div class="card-l"><h3>🏪 Approved stores</h3><p>Every store is reviewed by BuyEasy before it can sell.</p></div>
+      <div class="card-l"><h3>🏍️ Approved riders</h3><p>Riders are reviewed too, and each store picks the riders it trusts.</p></div>
+      <div class="card-l"><h3>⭐ Ratings that matter</h3><p>Buyers, stores and riders rate each other after every order, and we act on complaints.</p></div>
+      <div class="card-l"><h3>💬 Real local support</h3><p>Message us on WhatsApp on <b>071 151 1389</b> or from inside the app.</p></div>
+    </div>
+  </section>
+
+  <section class="blk faq" id="faq">
+    <div class="kick">FAQ</div><h2>Questions people ask</h2>
+    <details><summary>Where do you deliver?</summary><p>BuyEasy is launching in Nkomazi, Mpumalanga. You will see stores within 15&nbsp;km of your saved delivery location.</p></details>
+    <details><summary>How much does delivery cost?</summary><p>Delivery starts at R10 and adds R1.50 for each extra: every kilometre after the first, bad weather, evenings (18:00 to 05:00) and Sundays. You see the delivery fee at checkout, and if it ends up lower you only pay the lower amount.</p></details>
+    <details><summary>How do I pay?</summary><p>Pay cash to the rider when your order arrives, or use your BuyEasy wallet. Card payments are coming soon.</p></details>
+    <details><summary>What if my order does not arrive?</summary><p>If an order is not completed within 12 hours it is cancelled automatically and any wallet payment is refunded. You can also message our support team at any time.</p></details>
+    <details><summary>How do I sell on BuyEasy?</summary><p>Create an account, apply to become a store, and wait for our approval. Once approved you can add products and go online.</p></details>
+    <details><summary>How do I become a rider?</summary><p>Create an account and apply as a rider. After approval, ask the stores you want to work for. When a store approves you, its orders appear in your Jobs tab.</p></details>
+    <details><summary>Is my information safe?</summary><p>We only collect what we need to run your orders. Read our <a href="privacy.html" style="color:#4ade80">Privacy Policy</a> for details.</p></details>
+  </section>
+
+  <section class="contact" id="contact">
+    <h2>Need help? Talk to us.</h2>
+    <p>BuyEasy support is on WhatsApp. Ask about orders, selling or delivering.</p>
+    <a class="wa-btn" id="waContact" target="_blank" rel="noopener" href="#"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#04210f" stroke-width="2"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2z"/><path d="M8.5 8.5c.5 2.5 3 5 5.5 5.5l1.2-1.2-2-1-.8.8c-1-.5-1.8-1.3-2.3-2.3l.8-.8-1-2z" fill="#04210f" stroke="none"/></svg> WhatsApp 071 151 1389</a>
+    <p style="margin:16px 0 0;font-size:12.5px;color:#8fa497">BuyEasy • Nkomazi, Mpumalanga, South Africa</p>
+  </section>
+</main>
+
+<footer class="site"><div class="wrap">
+  <div>© <span id="yr"></span> BuyEasy. All rights reserved.</div>
+  <div><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><a href="refunds.html">Refunds &amp; cancellations</a><a href="admin/login.html">Admin</a></div>
+</div></footer>
+
+<a class="fab-wa" id="waFab" target="_blank" rel="noopener" href="#" aria-label="Chat with BuyEasy on WhatsApp"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#04210f" stroke-width="2"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2z"/><path d="M8.5 8.5c.5 2.5 3 5 5.5 5.5l1.2-1.2-2-1-.8.8c-1-.5-1.8-1.3-2.3-2.3l.8-.8-1-2z" fill="#04210f" stroke="none"/></svg></a>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+<script src="config.js"></script>
 <script src="supabase.js"></script>
 <script src="net-status.js"></script>
 <script>(function(){try{var id=localStorage.getItem("be_vid");if(!id){id=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():(Date.now()+"-"+Math.random().toString(36).slice(2,12));localStorage.setItem("be_vid",id);}if(window.supabaseClient)supabaseClient.rpc("track_visit",{p_visitor:id}).then(function(){},function(){});}catch(e){}})();</script>
@@ -124,6 +287,23 @@ body{background:var(--bg);color:var(--text);margin:0;font-family:Inter,system-ui
 let curAuth = 'login';
 let userLatLng = null;
 let deferredPrompt = null;
+
+
+function openAuth(type) {
+  switchAuth(type);
+  const box = document.getElementById('auth');
+  if (box) box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  setTimeout(() => { const f = document.getElementById(type === 'login' ? 'l_email' : 'r_email'); if (f) f.focus({ preventScroll: true }); }, 450);
+}
+(function initLanding() {
+  const B = window.BUYEASY;
+  if (B) {
+    const hello = B.waLink('Hi BuyEasy, I would like to know more.');
+    ['waFab', 'waContact'].forEach(id => { const a = document.getElementById(id); if (a) a.href = hello; });
+    const w = document.getElementById('waWaitlist'); if (w) w.href = B.waLink('Hi BuyEasy, please tell me when stores are live in my area.');
+  }
+  const y = document.getElementById('yr'); if (y) y.textContent = new Date().getFullYear();
+})();
 
 function switchAuth(type) {
   curAuth = type;
@@ -249,11 +429,7 @@ function escapeHTML(value) {
 async function getStores() {
   const client = window.supabaseClient;
   if (!client) return [];
-  const { data, error } = await client
-    .from('stores')
-    .select('id, store_name, address, latitude, longitude, logo_url, is_online')
-    .eq('is_approved', true)
-    .limit(50);
+  const { data, error } = await client.rpc('public_stores');
 
   if (error) {
     console.error('Could not load nearby stores:', error);
@@ -282,7 +458,7 @@ async function renderNear() {
   if (!stores.length) {
     grid.innerHTML = '';
     empty.style.display = 'block';
-    if (info.textContent !== 'Stores unavailable') info.textContent = '0 approved stores';
+    if (info.textContent !== 'Stores unavailable') info.textContent = 'Launching soon';
     return;
   }
 
