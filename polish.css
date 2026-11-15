@@ -91,3 +91,58 @@ div:has(> .order-tab)::-webkit-scrollbar{display:none}
 /* count badges on nav tabs (e.g. new orders) sit on the icon instead of stretching the label */
 .bnav-tab>span:not(.ic):not(.lb){position:absolute;top:3px;right:50%;transform:translateX(24px);min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--green);color:var(--green-ink);font-size:10.5px;font-weight:900;line-height:18px;text-align:center}
 .bnav-tab>span:not(.ic):not(.lb):empty{display:none}
+
+/* ---------- verified badge + rating text ---------- */
+.be-vbadge{display:inline-flex;vertical-align:-3px;margin-left:4px;filter:drop-shadow(0 1px 2px rgba(16,185,129,.45))}
+.be-vpill{display:inline-flex;align-items:center;gap:4px;margin-left:6px;padding:2px 9px 2px 5px;border-radius:999px;background:rgba(16,185,129,.14);color:#34d399;border:1px solid rgba(16,185,129,.4);font-size:11px;font-weight:800;vertical-align:middle}
+.be-rate{color:#f59e0b;font-weight:800;font-size:12px}.be-rate small{color:var(--muted);font-weight:600}
+
+/* ---------- slim top bar: bell + online switch ---------- */
+#brandHeader>div:last-child{display:flex;align-items:center}
+#onlineIcon.in-bar{min-height:36px;padding:6px 12px!important;font-size:12px;white-space:nowrap}
+.dash-header.in-settings{margin-bottom:6px}
+
+/* ---------- promotion / sponsored ---------- */
+.be-sponsored{display:inline-block;font-size:10px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:#f59e0b;background:rgba(245,158,11,.14);border:1px solid rgba(245,158,11,.35);padding:2px 8px;border-radius:999px}
+.be-feature{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(230px,82%);gap:12px;overflow-x:auto;padding:4px 2px 10px;scroll-snap-type:x mandatory;scrollbar-width:none}
+.be-feature::-webkit-scrollbar{display:none}
+.be-fcard{scroll-snap-align:start;border-radius:20px;border:1px solid rgba(245,158,11,.35);background:linear-gradient(160deg,rgba(245,158,11,.12),var(--card));padding:14px;cursor:pointer;display:grid;gap:10px}
+.be-fhead{display:flex;gap:10px;align-items:center}.be-logo{width:46px;height:46px;border-radius:14px;object-fit:cover;background:var(--card3);display:grid;place-items:center;font-weight:900;flex:0 0 46px;overflow:hidden}
+.be-logo img{width:100%;height:100%;object-fit:cover}
+.be-fthumbs{display:flex;gap:6px}.be-fthumbs span{flex:1;height:58px;border-radius:12px;background:var(--card3) center/cover;display:block}
+
+/* ---------- rider job card (store profile, route, timer) ---------- */
+.rj{padding:0!important;overflow:hidden}
+.rj-head{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border);background:linear-gradient(160deg,rgba(34,197,94,.08),transparent)}
+.rj-store{min-width:0;flex:1}.rj-store b{display:block;font-size:16px;font-weight:900;letter-spacing:-.2px}
+.rj-sub{font-size:12px;color:var(--muted);margin-top:2px}.rj-sub a{color:var(--green);font-weight:800;text-decoration:none;margin-left:6px}
+.rj-price{text-align:right;font-weight:900;font-size:18px;color:var(--green);line-height:1.1}.rj-price small{display:block;font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.4px}
+.rj>*:not(.rj-head){margin-left:16px;margin-right:16px}.rj>.rj-timer{margin-top:12px}
+.rj-timer{font-size:12px;font-weight:800;padding:9px 12px;border-radius:12px;background:rgba(245,158,11,.14);color:#f59e0b}
+.rj-timer.ok{background:rgba(34,197,94,.14);color:#22c55e}.rj-timer.late{background:rgba(239,68,68,.14);color:#f87171}
+.rj-route{margin-top:14px;display:grid;gap:0}.rj-stop{display:flex;gap:12px;align-items:flex-start}
+.rj-stop small{display:block;font-size:10px;letter-spacing:.9px;text-transform:uppercase;color:var(--muted);font-weight:800}.rj-stop b{font-size:14px;font-weight:800}
+.rj-dot{flex:0 0 14px;height:14px;border-radius:50%;margin-top:3px;border:3px solid;background:var(--bg)}.rj-dot.a{border-color:#f59e0b}.rj-dot.b{border-color:#3b82f6}
+.rj-line{width:2px;height:16px;margin:2px 0 2px 6px;background:var(--border)}
+.rj-items{margin-top:12px;font-size:13.5px;color:var(--text)}
+.rj-cash{margin-top:10px;padding:10px 12px;border-radius:12px;background:rgba(245,158,11,.15);color:#f59e0b;font-weight:800;font-size:13px}
+.rj-meta{margin-top:10px;font-size:12px;color:var(--muted)}.rj>.btn-green,.rj>.btn-white{width:calc(100% - 32px);margin-top:12px;margin-bottom:16px}
+
+/* ---------- buyer: pickup tag + no-rider notice ---------- */
+.be-pickup{display:inline-block;font-size:10px;font-weight:800;color:#60a5fa;background:rgba(59,130,246,.14);border:1px solid rgba(59,130,246,.35);padding:1px 7px;border-radius:999px;margin-left:4px}
+.rider-notice{margin-top:12px;padding:14px;border-radius:16px;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.4)}
+.rider-notice b{color:#60a5fa;font-size:14px}.rider-notice p{margin:6px 0 0;font-size:12.5px;line-height:1.55;color:var(--muted)}
+
+/* ---------- top bar fit (bell + online switch + role buttons) ---------- */
+@media(max-width:700px){#brandHeader>div:last-child>div{display:none!important}}
+#brandHeader{flex-wrap:nowrap!important}
+#brandHeader>div:last-child{min-width:0}
+.rj>div[style*="display:flex"][style*="gap:10px"]{margin-left:16px!important;margin-right:16px!important}
+@media(max-width:480px){
+  #brandHeader .brand-left{font-size:0!important;gap:0}
+  #brandHeader .brand-left .brand-logo{font-size:22px!important}
+  #brandHeader .pill{padding:7px 10px!important;font-size:11.5px!important}
+  #brandHeader{padding:8px 10px!important}
+}
+.sr-state{text-transform:none!important;letter-spacing:.1px!important;font-size:11px!important;white-space:nowrap}
+.sp-h p b{font-size:inherit!important;font-weight:900}

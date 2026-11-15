@@ -41,11 +41,42 @@
       <a aria-label="WhatsApp customer" href="https://wa.me/${n}?text=${wa}" target="_blank" rel="noopener" style="${base};background:#25D366"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2z"/><path d="M8.5 8.5c.5 2.5 3 5 5.5 5.5l1.2-1.2-2-1-.8.8c-1-.5-1.8-1.3-2.3-2.3l.8-.8-1-2z" fill="currentColor" stroke="none"/></svg></a></div>`;
   }
 
+
+  /* ---------- store profile header (logo, name, verified, rating) ---------- */
+  function storeHead(o, right) {
+    const st = o.stores || {};
+    const info = (window.BuyEasyBadge && BuyEasyBadge.store(o.store_id)) || {};
+    const logo = st.logo_url ? `<span class="be-logo"><img src="${esc(st.logo_url)}" alt=""></span>` : `<span class="be-logo">${esc((st.store_name || 'S').trim().charAt(0).toUpperCase())}</span>`;
+    const tel = cleanPhone(st.phone);
+    return `<div class="rj-head">${logo}<div class="rj-store"><b>${esc(st.store_name || 'Store')}${info.is_verified ? BuyEasyBadge.icon(16) : ''}</b>
+      <div class="rj-sub">${window.BuyEasyBadge ? BuyEasyBadge.stars(info) : ''}${tel.length > 8 ? ` <a href="tel:+${tel}">📞 Call store</a>` : ''}</div></div>${right ? `<div class="rj-price">${right}</div>` : ''}</div>`;
+  }
+  setInterval(() => {
+    document.querySelectorAll('.rj-timer').forEach(el => {
+      const t = Date.parse(el.dataset.offered || ''); const pool = Number(el.dataset.pool || 0);
+      if (!t || pool <= 1) { el.className = 'rj-timer ok'; el.textContent = '✅ This order is waiting for you'; return; }
+      const left = Math.max(0, 300 - Math.floor((Date.now() - t) / 1000));
+      if (left <= 0) { el.className = 'rj-timer late'; el.textContent = '⏱ Moving to the next rider…'; return; }
+      el.className = 'rj-timer' + (left < 60 ? ' late' : '');
+      el.textContent = `⏱ Accept within ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')} or it goes to the next rider`;
+    });
+  }, 1000);
+
+  /* ---------- location (only to find the NEAREST rider) ---------- */
+  let locTimer = null;
+  function sendLocation() {
+    if (!online || !navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(p => { db.rpc('rider_update_location', { p_lat: p.coords.latitude, p_lng: p.coords.longitude }).then(() => {}, () => {}); }, () => {}, { enableHighAccuracy: false, maximumAge: 60000, timeout: 15000 });
+  }
+  function startLocation() { stopLocation(); sendLocation(); locTimer = setInterval(sendLocation, 60000); }
+  function stopLocation() { if (locTimer) { clearInterval(locTimer); locTimer = null; } }
+
   /* ---------- online / offline ---------- */
   function applyOnline(v) {
     online = !!v;
     try { isOnline = online; } catch (e) { window.isOnline = online; }
     if (typeof window.updateOnlineUI === 'function') window.updateOnlineUI();
+    if (online) startLocation(); else stopLocation();
   }
   async function loadOnline() {
     await session();
@@ -60,7 +91,7 @@
       const { error } = await db.rpc('rider_set_online', { p_online: want });
       if (error) throw error;
       applyOnline(want);
-      done(want ? 'You are ONLINE. New jobs from your approved stores will ring here.' : 'You are OFFLINE. You will not receive new jobs.');
+      done(want ? 'You are ONLINE. Allow location so you receive the nearest orders first. New jobs ring here.' : 'You are OFFLINE. You will not receive new jobs.');
       busy = false; await renderJobs();
     } catch (e) { console.error(e); alert(e.message || 'Could not change your status.'); }
   }
@@ -77,13 +108,13 @@
       if (s.status === 'rejected') alertBus().alert({ id: `link:${s.link_id}:rejected`, icon: '⚠️', title: 'Store declined your request', body: `${s.store_name} declined your request.`, ring: false });
     });
   }
-  const badge = s => { const m = { approved: ['#22c55e', 'Approved'], pending: ['#f59e0b', 'Waiting for store'], rejected: ['#ef4444', 'Declined'], removed: ['#9ca3af', 'Removed'] }[s] || ['#9ca3af', s];
+  const badge = s => { const m = { approved: ['#22c55e', 'Approved'], pending: ['#f59e0b', 'Waiting for store'], rejected: ['#ef4444', 'Declined'], removed: ['#9ca3af', 'Removed'], suspended: ['#ef4444', 'Suspended by store'] }[s] || ['#9ca3af', s];
     return `<span style="color:${m[0]};font-weight:800;font-size:11px">${esc(m[1])}</span>`; };
   function drawStores() {
     const el = document.getElementById('myStoresPanel'); if (!el) return;
     const mine = myStores.length ? myStores.map(s => `<div class="hist-item" style="align-items:center"><div><b>${esc(s.store_name || 'Store')}</b><div>${badge(s.status)}</div></div>
       <div>${['approved', 'pending'].includes(s.status) ? `<button class="btn-white" style="padding:8px 12px;font-size:12px" onclick="leaveStore('${esc(s.store_id)}')">${s.status === 'pending' ? 'Cancel' : 'Leave'}</button>`
-        : `<button class="btn-green" style="padding:8px 12px;font-size:12px" onclick="requestStore('${esc(s.store_id)}')">Ask again</button>`}</div></div>`).join('')
+        : s.status === 'suspended' ? '' : `<button class="btn-green" style="padding:8px 12px;font-size:12px" onclick="requestStore('${esc(s.store_id)}')">Ask again</button>`}</div></div>`).join('')
       : '<p class="status">You are not working for any store yet. Ask a store below. You only see orders from stores that approve you.</p>';
     const avail = availableStores.length ? availableStores.map(s => `<div class="hist-item" style="align-items:center"><div><b>${esc(s.store_name || 'Store')}</b></div>
       <div><button class="btn-green" style="padding:8px 12px;font-size:12px" onclick="requestStore('${esc(s.store_id)}')">Ask to work here</button></div></div>`).join('')
@@ -99,11 +130,13 @@
   async function loadJobs() {
     const user = await session();
     if (!online) { jobs = []; return; }
+    await db.rpc('rider_dispatch_tick').then(() => {}, () => {});
     const { data, error } = await db.from('orders')
-      .select('id,order_number,status,buyer_id,store_id,customer_name,customer_phone,delivery_address,product_total,delivery_fee,total,rider_net,payment_method,created_at,stores(owner_id,store_name),order_items(product_name,quantity)')
+      .select('id,order_number,status,buyer_id,store_id,customer_name,customer_phone,delivery_address,product_total,delivery_fee,total,rider_net,payment_method,created_at,dispatch_offered_at,dispatch_pool,stores(owner_id,store_name,logo_url,address,phone),order_items(product_name,quantity)')
       .eq('status', 'ready').is('assigned_rider_id', null).order('created_at', { ascending: false });
     if (error) throw error;
     jobs = (data || []).filter(o => o.stores?.owner_id !== user.id && o.buyer_id !== user.id);
+    if (window.BuyEasyBadge) await BuyEasyBadge.loadStores(jobs.map(o => o.store_id));
   }
   function jobAlerts() {
     const ids = new Set(jobs.map(o => 'job:' + o.id));
@@ -123,12 +156,19 @@
       : beEmpty('🏪','No stores yet','Ask a store under My Stores above to work for it. You only see orders from stores that approve you.'); return; }
     el.innerHTML = rows.map(o => {
       const items = (o.order_items || []).map(i => `${esc(i.product_name)} × ${Number(i.quantity) || 0}`).join(', ');
-      return `<div class="job-card"><div class="job-top"><b>${esc(o.stores?.store_name || 'Store')} • ${esc(o.order_number)}</b><b>${money(o.total)}</b></div>
-        <div class="job-body"><div>Customer: <b>${esc(o.customer_name)}</b></div>${contactIcons(o.customer_phone, o.customer_name, o.order_number)}
-          <div>📍 ${esc(o.delivery_address)}</div><div>🛍️ ${items}</div>
-          ${o.payment_method === 'cash' ? `<div style="margin:8px 0;padding:8px 10px;border-radius:10px;background:rgba(245,158,11,.15);color:#f59e0b;font-weight:800">💵 Cash on delivery: collect ${money(o.total)} from the buyer</div>` : ''}
-          <div class="status">Earn up to ${money(o.rider_net)}<br><small>Final fee is confirmed when you accept.</small></div>
-          <button onclick="acceptJob('${esc(o.id)}')" class="btn-green">Accept job</button></div></div>`;
+      const st = o.stores || {};
+      return `<div class="job-card rj">${storeHead(o, `${money(o.rider_net)}<small>you earn</small>`)}
+        <div class="rj-timer" data-offered="${esc(o.dispatch_offered_at || '')}" data-pool="${Number(o.dispatch_pool || 0)}"></div>
+        <div class="rj-route">
+          <div class="rj-stop"><span class="rj-dot a"></span><div><small>Pick up</small><b>${esc(st.address || 'Store address on map')}</b></div></div>
+          <div class="rj-line"></div>
+          <div class="rj-stop"><span class="rj-dot b"></span><div><small>Deliver to</small><b>${esc(o.delivery_address)}</b><div class="rj-sub">${esc(o.customer_name)}</div></div></div>
+        </div>
+        ${contactIcons(o.customer_phone, o.customer_name, o.order_number)}
+        <div class="rj-items">🛍️ ${items}</div>
+        ${o.payment_method === 'cash' ? `<div class="rj-cash">💵 Cash on delivery. Collect ${money(o.total)} from the buyer.</div>` : ''}
+        <div class="rj-meta">Order ${esc(o.order_number)} • Order total ${money(o.total)}<br><small>The final fee is confirmed when you accept.</small></div>
+        <button onclick="acceptJob('${esc(o.id)}')" class="btn-green">Accept job</button></div>`;
     }).join('');
   }
   async function renderJobs() {
@@ -142,10 +182,11 @@
   async function loadDeliveries() {
     const user = await session();
     const { data, error } = await db.from('orders')
-      .select('id,order_number,status,customer_name,customer_phone,delivery_address,buyer_latitude,buyer_longitude,total,delivery_fee,rider_net,payment_method,payment_status,cancel_reason,created_at,updated_at,stores(store_name,latitude,longitude,phone),order_items(product_name,quantity)')
+      .select('id,order_number,status,store_id,customer_name,customer_phone,delivery_address,buyer_latitude,buyer_longitude,total,delivery_fee,rider_net,payment_method,payment_status,cancel_reason,created_at,updated_at,stores(store_name,logo_url,address,latitude,longitude,phone),order_items(product_name,quantity)')
       .eq('assigned_rider_id', user.id).order('updated_at', { ascending: false }).limit(100);
     if (error) throw error;
     deliveries = data || [];
+    if (window.BuyEasyBadge) await BuyEasyBadge.loadStores(deliveries.map(o => o.store_id));
   }
   const when = d => new Date(d).toLocaleString('en-ZA', { dateStyle: 'medium', timeStyle: 'short' });
   function stepBar(status) {
@@ -169,8 +210,8 @@
     el.innerHTML = active.length ? active.map(o => {
       const toStore = o.status === 'assigned';
       const cash = o.payment_method === 'cash' ? `<div style="margin:8px 0;padding:8px 10px;border-radius:10px;background:rgba(245,158,11,.15);color:#f59e0b;font-weight:800">💵 Collect ${money(o.total)} cash from the customer</div>` : '';
-      return `<div class="job-card"><div class="job-top"><b>${esc(o.stores?.store_name || 'Store')} • ${esc(o.order_number)}</b><b>${money(o.total)}</b></div>
-        <div class="job-body">${stepBar(o.status)}
+      return `<div class="job-card rj">${storeHead(o, `${money(o.rider_net)}<small>you earn</small>`)}
+        <div class="job-body" style="padding-top:6px">${stepBar(o.status)}
           <div style="font-weight:900">${toStore ? '👉 Next: go to the store and pick up the order' : '👉 Next: deliver to the customer'}</div>
           <div style="margin-top:6px">Customer: <b>${esc(o.customer_name)}</b></div>${contactIcons(o.customer_phone, o.customer_name, o.order_number)}
           <div>📍 ${esc(o.delivery_address)}</div><div>🛍️ ${(o.order_items || []).map(i => `${esc(i.product_name)} × ${Number(i.quantity) || 0}`).join(', ')}</div>${cash}

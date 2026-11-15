@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>BuyEasy — Buyer</title>
-<link rel="manifest" href="manifest.json"><meta name="theme-color" content="#22c55e"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="BuyEasy"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="theme-color" content="#22c55e"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="mobile.css">
 
@@ -12,6 +12,12 @@
 <script src="net-status.js"></script>
 <script src="alerts.js"></script>
 <script src="ratings.js"></script>
+<script src="badge.js"></script>
+<script src="announcements.js"></script>
+<script src="layout.js"></script>
+<script src="push.js"></script>
+<script>PushAlerts.init("buyer");</script>
+<script>BuyEasyAnnouncements.init("buyer");</script>
 <script src="activity.js"></script>
 <script src="config.js"></script>
 <script src="support.js"></script>
@@ -295,7 +301,7 @@ body.light #brandHeader{background:#fff}
         <div id="storeApplicationStatus" role="status" aria-live="polite" style="font-size:12px;line-height:1.5;margin-top:12px"></div>
       </div>
     </div>
-    <div class="mini-card" style="margin-top:12px"><div class="mini-head">🏍️ Apply to become a Rider</div><div class="mini-body open">
+    <div class="mini-card" style="margin-top:12px"><div class="mini-head" onclick="toggleMini('riderApplicationBody')">🏍️ Apply to become a Rider <span>⌄</span></div><div id="riderApplicationBody" class="mini-body">
       <p style="font-size:12px;color:var(--muted);line-height:1.5">Submit your details for a separate Admin review. You can use the Rider dashboard after approval.</p>
       <label class="bh-label" for="rider_apply_name">Full Name</label><input id="rider_apply_name" class="bh-field" maxlength="120" autocomplete="name" placeholder="Your full name">
       <label class="bh-label" for="rider_apply_phone">Phone</label><input id="rider_apply_phone" class="bh-field" type="tel" maxlength="30" autocomplete="tel" placeholder="Your phone number">

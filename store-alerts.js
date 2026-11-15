@@ -13,6 +13,7 @@
     if (busy || !db || typeof currentStore === 'undefined' || !currentStore || !A()) return;
     busy = true;
     try {
+      db.rpc('rider_dispatch_tick').then(() => {}, () => {});
       const key = 'be_store_status_' + currentStore.id;
       if (known === null) { try { known = JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) { known = null; } }
       const first = known === null; known = known || {};

@@ -1,5 +1,5 @@
 // BuyEasy service worker. Bump CACHE_VERSION on every deploy so phones never keep old code.
-const CACHE_VERSION = 'buyeasy-v7-2026-11-12';
+const CACHE_VERSION = 'buyeasy-v9-2026-11-14';
 const SHELL = ['/offline.html', '/icon-192.png', '/manifest.json'];
 
 self.addEventListener('install', e => {
@@ -20,7 +20,24 @@ self.addEventListener('fetch', e => {
     }).catch(() => caches.match(req).then(hit => hit || (req.mode === 'navigate' ? caches.match('/offline.html') : undefined)))
   );
 });
+// ---- push notifications (work even when the app is closed) ----
+self.addEventListener('push', e => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (_) { d = { title: 'BuyEasy', body: e.data ? e.data.text() : '' }; }
+  const ring = !!d.ring;
+  e.waitUntil(self.registration.showNotification(d.title || 'BuyEasy', {
+    body: d.body || '', icon: '/icon-192.png', badge: '/icon-192.png',
+    tag: d.tag || undefined, renotify: !!d.tag, requireInteraction: ring,
+    vibrate: ring ? [500, 200, 500, 200, 500, 200, 500] : [200],
+    data: { url: d.url || '/' }
+  }));
+});
 self.addEventListener('notificationclick', e => {
   e.notification.close();
-  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => { if (list.length) return list[0].focus(); return self.clients.openWindow('/index.html'); }));
+  const url = (e.notification.data && e.notification.data.url) || '/';
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+    for (const c of list) { if ('focus' in c) { if (c.url.includes(url) || url === '/') return c.focus(); } }
+    if (list.length && 'navigate' in list[0]) return list[0].focus().then(w => w.navigate(url));
+    return self.clients.openWindow(url);
+  }));
 });

@@ -91,12 +91,53 @@
       img: row.image_url || '', media: Array.isArray(row.media) ? row.media : [], description: row.description || ''
     }));
     state.products = state.all.filter(inRange);
+    refreshTrust();
     await loadFavourites();
     if (typeof globalProducts !== 'undefined') globalProducts = state.products.slice();
     if (typeof window.renderShop === 'function') window.renderShop();
     if (typeof window.renderFavs === 'function') window.renderFavs();
     return state.products;
   }
+
+  /* ---------- verified badges, rider availability and sponsored stores ---------- */
+  state.riders = {}; state.promos = [];
+  async function refreshTrust() {
+    try {
+      const ids = [...new Set((state.all || []).map(p => p.storeId).filter(Boolean))];
+      if (!ids.length) return;
+      if (window.BuyEasyBadge) await BuyEasyBadge.loadStores(ids);
+      const av = await db.rpc('store_rider_availability', { p_store_ids: ids });
+      if (!av.error) { state.riders = {}; (av.data || []).forEach(r => { state.riders[r.store_id] = Number(r.online_riders); }); }
+      const pr = await db.rpc('public_active_promotions');
+      if (!pr.error) state.promos = pr.data || [];
+      drawShop(); renderFeatured(); renderCart();
+    } catch (e) { console.warn('Trust refresh', e.message || e); }
+  }
+  setInterval(() => { if (!document.hidden) refreshTrust(); }, 60000);
+  window.refreshTrust = refreshTrust;
+
+  function renderFeatured() {
+    let box = $('featuredBox');
+    if (!box) { const anchor = $('nearestStores'); if (!anchor || !anchor.parentNode) return; box = document.createElement('div'); box.id = 'featuredBox'; anchor.parentNode.insertBefore(box, anchor.previousElementSibling || anchor); }
+    const byStore = new Map(); (state.products || []).forEach(p => { if (!byStore.has(p.storeId)) byStore.set(p.storeId, []); byStore.get(p.storeId).push(p); });
+    const cards = (state.promos || []).filter(pr => byStore.has(pr.store_id)).map(pr => {
+      const prods = byStore.get(pr.store_id); const first = prods[0];
+      const feat = (pr.product_ids || []).map(id => prods.find(p => p.id === id)).filter(Boolean); const show = (feat.length ? feat : prods).slice(0, 3);
+      return { pr, first, show, online: prods.some(p => p.online) };
+    }).filter(c => c.online);
+    if (!cards.length) { box.innerHTML = ''; return; }
+    for (let i = cards.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [cards[i], cards[j]] = [cards[j], cards[i]]; }
+    box.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin:14px 2px 8px"><b style="font-size:15px">⭐ Featured stores</b><span class="be-sponsored">Sponsored</span></div>
+      <div class="be-feature">${cards.slice(0, 8).map(c => { const p = c.first, tag = c.pr.tagline;
+        const dist = (typeof buyerLatLng !== 'undefined' && buyerLatLng && p.storeLat != null) ? window.haversine(...buyerLatLng, p.storeLat, p.storeLng) : null;
+        return `<div class="be-fcard" onclick="viewStore('${esc(p.storeId)}')"><div class="be-fhead"><span class="be-logo">${esc((p.storeName || 'S').trim().charAt(0).toUpperCase())}</span>
+          <div style="min-width:0"><b style="font-size:15px">${esc(p.storeName)}${window.BuyEasyBadge ? BuyEasyBadge.storeBadge(p.storeId, 15) : ''}</b>
+          <div style="font-size:12px;color:var(--muted)">${window.BuyEasyBadge ? BuyEasyBadge.stars(BuyEasyBadge.store(p.storeId)) : ''}${dist !== null ? ` • ${dist.toFixed(1)} km` : ''}</div></div></div>
+          ${tag ? `<div style="font-size:13px">${esc(tag)}</div>` : ''}
+          <div class="be-fthumbs">${c.show.map(x => `<span style="background-image:url('${esc(x.img || '')}')"></span>`).join('')}</div></div>`; }).join('')}</div>`;
+  }
+  window.renderFeatured = renderFeatured;
+
   function cartProducts() {
     return cartRead().map(item => {
       const p = state.products.find(x => x.id === item.product_id);
@@ -126,7 +167,7 @@
         <button class="fav-btn ${isFavProduct(p.id)?'active':''}" onclick="event.stopPropagation();toggleFavProd('${esc(p.id)}','${esc(p.storeId)}')">${isFavProduct(p.id)?'❤️':'🤍'}</button>
         <div style="position:relative;width:100%;height:130px;overflow:hidden;border-radius:12px;background:#222;cursor:pointer" onclick="openGallery('${esc(p.id)}')">${first?`<img src="${esc(first)}" style="width:100%;height:100%;object-fit:cover">`:'<div style="display:grid;place-items:center;height:100%">🛒</div>'}</div>
         <div class="prod-info"><div class="prod-name" onclick="openGallery('${esc(p.id)}')">${esc(p.name)}</div>
-        <div class="prod-meta"><span class="dot ${p.online?'online':'offline'}"></span><span onclick="viewStore('${esc(p.storeId)}')">${esc(p.storeName)}</span>${p.dist<9999?` • ${p.dist.toFixed(1)} km`:''}</div>
+        <div class="prod-meta"><span class="dot ${p.online?'online':'offline'}"></span><span onclick="viewStore('${esc(p.storeId)}')">${esc(p.storeName)}</span>${window.BuyEasyBadge ? BuyEasyBadge.storeBadge(p.storeId, 14) : ''}${state.riders && state.riders[p.storeId] === 0 ? ' <span class="be-pickup">🚶 Pickup only</span>' : ''}${p.dist<9999?` • ${p.dist.toFixed(1)} km`:''}</div>
         <div class="prod-price">${money(p.price)}</div><div class="store-actions"><button onclick="addToCartByIndex(${index})" ${p.online?'':'disabled'} class="add-btn" style="flex:1">${p.online?'Add':'Off'}</button><button onclick="viewStore('${esc(p.storeId)}')" class="icon-btn">🏪</button><button onclick="openStoreLocation('${esc(p.storeId)}')" class="icon-btn">📍</button><button onclick="openGallery('${esc(p.id)}')" class="icon-btn">👁️</button></div></div></div>`;
     }).join('');
     if (typeof window.renderNearestStores === 'function') window.renderNearestStores();
@@ -162,6 +203,14 @@
     if ($('cartTotal')) $('cartTotal').textContent=money(sum);
     if ($('cartCount')) $('cartCount').textContent=String(rows.reduce((n,p)=>n+p.qty,0));
     updateDeliveryPreview();
+    cartRiderNotice();
+  }
+  function cartRiderNotice() {
+    const el = $('cartList'); if (!el) return;
+    el.querySelectorAll('.rider-notice').forEach(n => n.remove());
+    const none = [...new Set(cartProducts().filter(p => state.riders && state.riders[p.storeId] === 0).map(p => p.storeName))];
+    if (!none.length) return;
+    el.insertAdjacentHTML('beforeend', `<div class="rider-notice"><b>🚶 No riders online for ${none.map(esc).join(', ')}</b><p>You will need to <b>collect these items yourself</b> from the store. No delivery fee is charged. We will ask you to confirm before you order.</p></div>`);
   }
   function changeQuantity(id, delta) {
     const rows=cartRead(); const item=rows.find(x=>x.product_id===id); if(!item) return;
@@ -175,25 +224,41 @@
       const { data: ownedStores, error: ownedError } = await db.from('stores').select('id').eq('owner_id', user.id);
       if (ownedError) throw ownedError;
       const ownedIds = new Set((ownedStores || []).map(store => store.id));
-      const ownStoreItem = rows.some(item => { const product = state.products.find(p => p.id === item.product_id); return product && ownedIds.has(product.storeId); });
-      if (ownStoreItem) throw new Error('You cannot buy products from your own store. Remove them from your cart before checkout.');
+      const storeOf = r => state.products.find(p => p.id === r.product_id)?.storeId;
+      if (rows.some(r => ownedIds.has(storeOf(r)))) throw new Error('You cannot buy products from your own store. Remove them from your cart before checkout.');
       const name=$('b_name')?.value.trim() || profile.full_name;
       const phone=$('b_phone')?.value.trim() || profile.phone;
       const address=$('b_addr')?.value.trim() || profile.delivery_address;
       const lat=Number($('b_lat')?.value || profile.buyer_latitude);
       const lng=Number($('b_lng')?.value || profile.buyer_longitude);
-      if(!name || !phone || !address || !Number.isFinite(lat) || !Number.isFinite(lng)) { if(typeof window.openTab==='function') window.openTab('settings',document.querySelectorAll('.bnav-tab')[4]); throw new Error('Please save your name, phone, delivery address and map pin in Settings first.'); }
-      const { error: profileError }=await db.from('profiles').update({full_name:name,phone,delivery_address:address,buyer_latitude:lat,buyer_longitude:lng}).eq('id',user.id);
-      if(profileError) throw profileError;
+      const goSettings = msgText => { if(typeof window.openTab==='function') window.openTab('settings',document.getElementById('bnav-settings')); throw new Error(msgText); };
+      if(!name || !phone) goSettings('Add your name and phone number in Settings before ordering.');
+
+      // stores with NO online rider can only be collected by the buyer
+      const ids=[...new Set(rows.map(storeOf).filter(Boolean))];
+      const av=await db.rpc('store_rider_availability',{p_store_ids:ids}); if(av.error) throw av.error;
+      const none=new Set((av.data||[]).filter(x=>Number(x.online_riders)===0).map(x=>x.store_id));
+      const pickRows=rows.filter(r=>none.has(storeOf(r))), delRows=rows.filter(r=>!none.has(storeOf(r)));
+      if(delRows.length && (!address || !Number.isFinite(lat) || !Number.isFinite(lng))) goSettings('Add your delivery address and map pin in Settings before ordering.');
+      if(pickRows.length){
+        const names=[...new Set(pickRows.map(r=>state.products.find(p=>p.id===r.product_id)?.storeName))].join(', ');
+        if(!confirm(`🚶 No riders are online for ${names}.\n\nYou will need to collect ${pickRows.length>1?'these items':'this order'} yourself from the store. No delivery fee is charged.\n\nDo you want to continue?`)) return;
+      }
+      if(address && Number.isFinite(lat) && Number.isFinite(lng)){
+        const { error: profileError }=await db.from('profiles').update({full_name:name,phone,delivery_address:address,buyer_latitude:lat,buyer_longitude:lng}).eq('id',user.id);
+        if(profileError) throw profileError;
+      }
       const method=(typeof selectedPay!=='undefined' ? selectedPay : 'wallet');
       if(method==='card') throw new Error('Card payments are not connected yet. Choose Wallet or Cash.');
-      const {data,error}=await db.rpc('buyer_checkout',{p_items:rows,p_customer_name:name,p_customer_phone:phone,p_delivery_address:address,p_buyer_latitude:lat,p_buyer_longitude:lng,p_payment_method:method==='cod'?'cash':'wallet'});
-      if(error) throw error;
-      cartWrite([]); renderCart(); await Promise.all([renderOrders(),updateStats()]);
-      const total=Number(data?.total||0);
-      msg(method==='wallet'
-        ? 'Order placed. The delivery fee shown at checkout is locked and will never increase. If a lower-cost Rider accepts, we automatically return the difference to your Wallet.'
-        : 'Order placed. The delivery fee shown at checkout is the most you will pay and will never increase. If a lower-cost Rider accepts, your cash total is reduced.');
+      const call=(items,fulfil)=>db.rpc('buyer_checkout',{p_items:items,p_customer_name:name,p_customer_phone:phone,p_delivery_address:address||'',p_buyer_latitude:Number.isFinite(lat)?lat:null,p_buyer_longitude:Number.isFinite(lng)?lng:null,p_payment_method:method,p_fulfillment:fulfil});
+      if(delRows.length){ const r=await call(delRows,'delivery'); if(r.error) throw r.error; cartWrite(pickRows); }
+      if(pickRows.length){ const r=await call(pickRows,'pickup'); if(r.error) throw r.error; cartWrite([]); }
+      renderCart(); await Promise.all([renderOrders(),updateStats()]);
+      msg(pickRows.length && !delRows.length
+        ? 'Order placed. The store will prepare it. Collect it from the store when it is ready. No delivery fee.'
+        : method==='wallet'
+          ? 'Order placed. The delivery fee shown at checkout is locked and will never increase. If a lower-cost Rider accepts, we automatically return the difference to your Wallet.'
+          : 'Order placed. The delivery fee shown at checkout is the most you will pay and will never increase. If a lower-cost Rider accepts, your cash total is reduced.');
       if(typeof window.openTab==='function') window.openTab('orders',document.querySelectorAll('.bnav-tab')[2]);
     } catch(error) { fail(error); }
   }

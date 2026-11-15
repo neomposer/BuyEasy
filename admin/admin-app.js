@@ -15,7 +15,7 @@
   const statusTag = s => ({ active: '<span class="tag t-g">Active</span>', flagged: '<span class="tag t-a">Flagged</span>', suspended: '<span class="tag t-r">Suspended</span>' }[s] || '');
 
   const TABS = [['overview', '📊 Overview'], ['stores', '🏪 Stores'], ['riders', '🏍️ Riders'], ['orders', '📦 Orders'], ['users', '👥 Users'],
-    ['ratings', '⭐ Ratings'], ['feedback', '💬 Feedback'], ['support', '🛟 Support'], ['settings', '⚙️ Settings']];
+    ['ratings', '⭐ Ratings'], ['feedback', '💬 Feedback'], ['news', '📢 Announcements'], ['promos', '📣 Promotions'], ['support', '🛟 Support'], ['settings', '⚙️ Settings']];
   const S = { tab: 'overview', days: 30, badges: {}, ordFilter: 'all', ordSearch: '', userRole: 'all', userSearch: '', rateRole: 'store', rateSort: 'low', fbRole: 'all', fbSort: 'low', tkStatus: 'open', storeSort: 'sales' };
 
   function drawNav() {
@@ -67,6 +67,20 @@
         if (d.mode !== 'close' && !text.trim()) return alert('Write a reply first.');
         await rpc('admin_reply_ticket', { p_ticket_id: d.id, p_reply: d.mode === 'close' ? '' : text, p_close: d.mode !== 'keep' }); toast('Saved');
       }
+      else if (kind === 'verify') {
+        const make = d.v === '1';
+        if (!confirm(make ? `Give the Verified badge to ${d.email}?\nEveryone will see it as a sign of a trusted, well-rated member.` : `Remove the Verified badge from ${d.email}?`)) return;
+        const note = make ? (prompt('Why are they verified? (optional)') || '') : '';
+        await rpc('admin_set_verified', { p_user_id: d.id, p_verified: make, p_note: note }); toast(make ? 'Verified badge given' : 'Badge removed');
+      }
+      else if (kind === 'announce') {
+        const t = $('annTitle').value.trim(), b = $('annBody').value.trim();
+        if (t.length < 3 || b.length < 3) return alert('Add a title and a message.');
+        await rpc('admin_post_announcement', { p_title: t, p_body: b, p_kind: $('annKind').value, p_audience: $('annAud').value, p_pinned: $('annPin').checked, p_expires_hours: Number($('annExp').value) || null });
+        toast('Announcement published');
+      }
+      else if (kind === 'ann-toggle') { await rpc('admin_set_announcement', { p_id: d.id, p_active: d.on === '1', p_delete: false }); toast(d.on === '1' ? 'Announcement is live' : 'Announcement hidden'); }
+      else if (kind === 'ann-del') { if (!confirm('Delete this announcement for good?')) return; await rpc('admin_set_announcement', { p_id: d.id, p_active: false, p_delete: true }); toast('Deleted'); }
       else if (kind === 'weather') { const v = $('weatherSel').value; await rpc('admin_set_weather', { p_condition: v }); toast('Weather set to ' + v); return; }
       else if (kind === 'cleanup') { const n = await rpc('cancel_stale_orders'); toast(`Cleanup done. ${n} old order(s) cancelled.`); return; }
       else if (kind === 'comments') { return showComments(d.id, d.email); }
@@ -74,6 +88,8 @@
       await loadBadges(); await render();
     } catch (e) { alert(e.message || 'Something went wrong.'); }
   }
+  const seal = (v, n) => (v && window.BuyEasyBadge ? BuyEasyBadge.icon(n || 15) : '');
+  const verifyBtn = (id, verified, email) => `<button class="btn ${verified ? '' : 'g'}" data-act="verify" data-id="${esc(id)}" data-v="${verified ? '0' : '1'}" data-email="${esc(email)}">${verified ? '✔ Remove badge' : '🏅 Verify'}</button>`;
   const accountButtons = (id, status, email) => ['flagged', 'suspended', 'active'].filter(s => s !== status).map(s =>
     `<button class="btn ${s === 'suspended' ? 'r' : s === 'flagged' ? 'a' : 'g'}" data-act="status" data-id="${esc(id)}" data-st="${s}" data-email="${esc(email)}">${{ flagged: '🚩 Flag', suspended: '⛔ Suspend', active: '✔ Clear' }[s]}</button>`).join('');
 
@@ -88,10 +104,11 @@
       const tot = Math.max(1, a.orders_total);
       v.innerHTML = `<h2>Overview</h2>${chips([[7, 'Last 7 days'], [30, 'Last 30 days'], [90, 'Last 90 days'], [0, 'All time']], S.days, 'days')}
       <div class="grid">
-        <div class="kpi"><small>Platform earnings</small><b>${money(a.platform_earnings)}</b><i>from delivered orders</i></div>
+        <div class="kpi"><small>BuyEasy earnings</small><b>${money(a.platform_earnings)}</b><i>${money(a.fees_earned)} fees + ${money(a.promo_revenue)} promotions</i></div>
         <div class="kpi"><small>Store sales</small><b>${money(a.sales_delivered)}</b><i>delivered, excl. delivery</i></div>
         <div class="kpi"><small>Orders</small><b>${num(a.orders_total)}</b><i>${num(a.orders_delivered)} delivered</i></div>
         <div class="kpi"><small>Delivery success</small><b>${pct(a.orders_delivered, a.orders_total)}</b><i>${num(a.orders_cancelled)} cancelled</i></div>
+        <div class="kpi"><small>Cash orders</small><b>${num(a.orders_cash)}</b><i>no BuyEasy fee on cash</i></div>
         <div class="kpi"><small>New accounts</small><b>${num(a.accounts_new)}</b><i>${num(a.accounts_total)} in total</i></div>
       </div>
       <div class="two" style="margin-top:12px">
@@ -104,6 +121,7 @@
           <h3 style="margin-top:16px">Stores &amp; riders</h3>
           <div class="grid" style="grid-template-columns:1fr 1fr">
             <div class="kpi"><small>Active stores</small><b>${num(a.stores_active)}<small style="font-size:13px;color:var(--muted)"> / ${num(a.stores_approved)}</small></b><i>delivered in last 30 days (${pct(a.stores_active, a.stores_approved)})</i></div>
+            <div class="kpi"><small>Verified members</small><b>${num(a.verified_users)}</b><i>trusted badge given</i></div>
             <div class="kpi"><small>Online now</small><b>${num(a.stores_online)} <small style="font-size:13px;color:var(--muted)">stores</small></b><i>${num(a.riders_online)} of ${num(a.riders_approved)} riders online</i></div>
           </div></div>
       </div>
@@ -126,7 +144,7 @@
       <div class="card"><h3>Waiting for approval (${apps.data.length})</h3>${apps.data.length ? apps.data.map(a => `<div class="item"><div class="h"><div><b>${esc(a.store_name)}</b><div class="m">${esc(a.owner_name)} • ${esc(a.phone)}<br>${esc(a.address)}<br>Applied ${when(a.created_at)}</div></div></div>
         <div class="acts"><button class="btn g" data-act="store-review" data-id="${esc(a.id)}" data-dec="approved">Approve</button><button class="btn r" data-act="store-review" data-id="${esc(a.id)}" data-dec="rejected">Reject</button></div></div>`).join('') : '<div class="empty">No stores are waiting.</div>'}</div>
       <h3>Store performance</h3>${chips([[7, '7 days'], [30, '30 days'], [90, '90 days'], [0, 'All time']], S.days, 'days')}${chips([['sales', 'Best sales'], ['rating', 'Best rated']], S.storeSort, 'storeSort')}
-      <div class="card scroll">${rows.length ? `<table><tr><th>#</th><th>Store</th><th>Sales</th><th>Delivered</th><th>Cancelled</th><th>Rating</th><th>Last order</th><th></th></tr>${rows.map((s, i) => `<tr><td>${i + 1}</td><td><b>${esc(s.store_name)}</b><div class="m" style="color:var(--muted);font-size:11px">${esc(s.owner_email)}</div></td><td><b>${money(s.sales)}</b></td><td>${num(s.orders_delivered)}</td><td>${num(s.orders_cancelled)}</td><td>${s.avg_rating ? `<span class="stars">★</span> ${s.avg_rating} <small style="color:var(--muted)">(${s.rating_count})</small>` : '<span style="color:var(--muted)">none</span>'}</td><td>${ago(s.last_order_at)}</td><td>${s.is_online ? '<span class="tag t-g">Online</span>' : '<span class="tag t-n">Offline</span>'}</td></tr>`).join('')}</table>` : '<div class="empty">No approved stores yet.</div>'}</div>`;
+      <div class="card scroll">${rows.length ? `<table><tr><th>#</th><th>Store</th><th>Sales</th><th>Delivered</th><th>Cancelled</th><th>Rating</th><th>Last order</th><th>Status</th><th>Badge</th></tr>${rows.map((s, i) => `<tr><td>${i + 1}</td><td><b>${esc(s.store_name)}</b>${seal(s.is_verified)}<div class="m" style="color:var(--muted);font-size:11px">${esc(s.owner_email)}</div></td><td><b>${money(s.sales)}</b></td><td>${num(s.orders_delivered)}</td><td>${num(s.orders_cancelled)}</td><td>${s.avg_rating ? `<span class="stars">★</span> ${s.avg_rating} <small style="color:var(--muted)">(${s.rating_count})</small>` : '<span style="color:var(--muted)">none</span>'}</td><td>${ago(s.last_order_at)}</td><td>${s.is_online ? '<span class="tag t-g">Online</span>' : '<span class="tag t-n">Offline</span>'}</td><td>${verifyBtn(s.owner_id, s.is_verified, s.store_name)}</td></tr>`).join('')}</table>` : '<div class="empty">No approved stores yet.</div>'}</div>`;
     },
 
     async riders(v) {
@@ -137,10 +155,10 @@
       v.innerHTML = `<h2>Riders</h2>
       <div class="card"><h3>Waiting for approval (${apps.data.length})</h3>${apps.data.length ? apps.data.map(a => `<div class="item"><b>${esc(a.full_name)}</b><div class="m">${esc(a.phone)} • ${esc(a.transport_type)}<br>Applied ${when(a.created_at)}</div>
         <div class="acts"><button class="btn g" data-act="rider-review" data-id="${esc(a.id)}" data-dec="approved">Approve</button><button class="btn r" data-act="rider-review" data-id="${esc(a.id)}" data-dec="rejected">Reject</button></div></div>`).join('') : '<div class="empty">No riders are waiting.</div>'}</div>
-      <div class="card"><h3>Approved riders (${list.length})</h3>${list.length ? list.map(r => `<div class="item"><div class="h"><div><b>${esc(r.full_name)}</b> ${r.is_online ? '<span class="tag t-g">Online</span>' : '<span class="tag t-n">Offline</span>'} ${statusTag(r.status)}<div class="m">${esc(r.email)} • ${esc(r.phone)} • ${esc(r.transport_type)}</div></div>
+      <div class="card"><h3>Approved riders (${list.length})</h3>${list.length ? list.map(r => `<div class="item"><div class="h"><div><b>${esc(r.full_name)}</b>${seal(r.is_verified)} ${r.is_online ? '<span class="tag t-g">Online</span>' : '<span class="tag t-n">Offline</span>'} ${statusTag(r.status)}<div class="m">${esc(r.email)} • ${esc(r.phone)} • ${esc(r.transport_type)}</div></div>
         <div style="text-align:right"><b>${num(r.deliveries)}</b><div class="m">deliveries</div></div></div>
         <div class="m">${r.avg_rating ? `<span class="stars">${stars(r.avg_rating)}</span> ${r.avg_rating} (${r.rating_count} ratings)` : 'No ratings yet'}</div>
-        <div class="acts">${accountButtons(r.user_id, r.status, r.email)}<button class="btn" data-act="comments" data-id="${esc(r.user_id)}" data-email="${esc(r.email)}">Comments</button></div></div>`).join('') : '<div class="empty">No approved riders.</div>'}</div>`;
+        <div class="acts">${verifyBtn(r.user_id, r.is_verified, r.email)}${accountButtons(r.user_id, r.status, r.email)}<button class="btn" data-act="comments" data-id="${esc(r.user_id)}" data-email="${esc(r.email)}">Comments</button></div></div>`).join('') : '<div class="empty">No approved riders.</div>'}</div>`;
     },
 
     async orders(v) {
@@ -157,9 +175,9 @@
       const rows = await rpc('admin_list_users', { p_search: S.userSearch, p_role: S.userRole, p_limit: 150 });
       v.innerHTML = `<h2>Users</h2>${chips([['all', 'Everyone'], ['buyer', 'Buyers'], ['store', 'Stores'], ['rider', 'Riders']], S.userRole, 'userRole')}
       <div class="row"><input data-search="userSearch" placeholder="Search email, name or phone" value="${esc(S.userSearch)}" style="flex:1;min-width:200px"></div>
-      ${rows.length ? rows.map(u => `<div class="item"><div class="h"><div><b style="word-break:break-all">${esc(u.email)}</b> <span class="tag t-b">${esc(u.role)}</span> ${statusTag(u.status)}
+      ${rows.length ? rows.map(u => `<div class="item"><div class="h"><div><b style="word-break:break-all">${esc(u.email)}</b>${seal(u.is_verified)} <span class="tag t-b">${esc(u.role)}</span> ${statusTag(u.status)}
         <div class="m">${esc(u.full_name || '')} ${u.phone ? '• ' + esc(u.phone) : ''}<br>Joined ${when(u.created_at)} • last active ${ago(u.last_seen_at)} • ${num(u.orders_count)} orders</div></div></div>
-        <div class="acts"><button class="btn" data-act="email" data-id="${esc(u.id)}" data-email="${esc(u.email)}">✉️ Change email</button>${u.role === 'admin' ? '' : accountButtons(u.id, u.status, u.email)}</div></div>`).join('') : '<div class="empty">No users found.</div>'}`;
+        <div class="acts"><button class="btn" data-act="email" data-id="${esc(u.id)}" data-email="${esc(u.email)}">✉️ Change email</button>${['store', 'rider'].includes(u.role) ? verifyBtn(u.id, u.is_verified, u.email) : ''}${u.role === 'admin' ? '' : accountButtons(u.id, u.status, u.email)}</div></div>`).join('') : '<div class="empty">No users found.</div>'}`;
     },
 
     async ratings(v) {
@@ -167,8 +185,8 @@
       let rows = sum.filter(r => r.role === S.rateRole);
       rows.sort((a, b) => S.rateSort === 'low' ? Number(a.avg_stars) - Number(b.avg_stars) : Number(b.avg_stars) - Number(a.avg_stars));
       v.innerHTML = `<h2>Ratings between users</h2>${chips([['buyer', 'Buyers'], ['rider', 'Riders'], ['store', 'Stores']], S.rateRole, 'rateRole')}${chips([['low', 'Most underrated first'], ['high', 'Best rated first']], S.rateSort, 'rateSort')}
-      ${rows.length ? rows.map(r => `<div class="item"><div class="h"><div><b style="word-break:break-all">${esc(r.email)}</b> ${statusTag(r.status)}<div class="m"><span class="stars">${stars(r.avg_stars)}</span> <b>${Number(r.avg_stars).toFixed(2)}</b> • ${num(r.ratings_count)} ratings • ${num(r.low_count)} low (1-2★)</div></div></div>
-        <div class="acts"><button class="btn" data-act="comments" data-id="${esc(r.user_id)}" data-email="${esc(r.email)}">💬 Read comments</button>${accountButtons(r.user_id, r.status, r.email)}</div><div id="cm_${esc(r.user_id)}"></div></div>`).join('') : '<div class="empty">No ratings for this group yet.</div>'}`;
+      ${rows.length ? rows.map(r => `<div class="item"><div class="h"><div><b style="word-break:break-all">${esc(r.email)}</b>${seal(r.is_verified)} ${statusTag(r.status)}<div class="m"><span class="stars">${stars(r.avg_stars)}</span> <b>${Number(r.avg_stars).toFixed(2)}</b> • ${num(r.ratings_count)} ratings • ${num(r.low_count)} low (1-2★)</div></div></div>
+        <div class="acts"><button class="btn" data-act="comments" data-id="${esc(r.user_id)}" data-email="${esc(r.email)}">💬 Read comments</button>${r.role !== 'buyer' ? verifyBtn(r.user_id, r.is_verified, r.email) : ''}${accountButtons(r.user_id, r.status, r.email)}</div><div id="cm_${esc(r.user_id)}"></div></div>`).join('') : '<div class="empty">No ratings for this group yet.</div>'}`;
     },
 
     async feedback(v) {
@@ -178,6 +196,37 @@
       <div class="card"><b>${rows.length}</b> responses • average <b>${avg}</b> ${avg !== '-' ? `<span class="stars">${stars(avg)}</span>` : ''}</div>
       ${rows.length ? rows.map(f => `<div class="item"><div class="h"><div><span class="stars">${stars(f.rating)}</span> <span class="tag t-b">${esc(f.user_role || '')}</span> ${f.category ? `<span class="tag t-n">${esc(f.category)}</span>` : ''}</div><span class="m">${when(f.created_at)}</span></div>
         <div style="margin-top:6px">${f.message ? esc(f.message) : '<i style="color:var(--muted)">No message</i>'}</div><div class="m">${esc(f.email)}</div></div>`).join('') : '<div class="empty">No feedback yet.</div>'}`;
+    },
+
+
+    async news(v) {
+      const rows = await rpc('admin_list_announcements');
+      const kindTag = k => ({ info: '<span class="tag t-b">Update</span>', success: '<span class="tag t-g">Good news</span>', warning: '<span class="tag t-a">Important</span>', promo: '<span class="tag t-b" style="background:rgba(168,85,247,.15);color:#c084fc">Offer</span>' }[k] || '');
+      v.innerHTML = `<h2>Announcements</h2>
+      <div class="card"><h3>New announcement</h3>
+        <input id="annTitle" maxlength="120" placeholder="Title, e.g. We are now live in Nkomazi!" style="width:100%;margin-bottom:8px">
+        <textarea id="annBody" maxlength="1500" placeholder="Write your message. Keep it short and clear."></textarea>
+        <div class="row" style="margin-top:8px">
+          <select id="annKind"><option value="info">📢 Update</option><option value="success">✅ Good news</option><option value="warning">⚠️ Important</option><option value="promo">🎉 Offer</option></select>
+          <select id="annAud"><option value="all">Everyone</option><option value="buyer">Buyers</option><option value="store">Stores</option><option value="rider">Riders</option></select>
+          <input id="annExp" type="number" min="0" placeholder="Hide after (hours)" style="width:150px">
+          <label style="display:flex;gap:6px;align-items:center;color:var(--muted);font-size:13px"><input id="annPin" type="checkbox"> Pin to top</label>
+        </div>
+        <div class="acts"><button class="btn g" data-act="announce">Publish announcement</button></div>
+        <div class="m" style="color:var(--muted);font-size:12px;margin-top:8px">Users see it as a banner at the top of their dashboard until they tap "Got it". Leave "Hide after" empty to keep it up.</div></div>
+      <h3>Published (${rows.length})</h3>
+      ${rows.length ? rows.map(a => `<div class="item"><div class="h"><div><b>${esc(a.title)}</b> ${kindTag(a.kind)} <span class="tag t-n">${esc(a.audience === 'all' ? 'Everyone' : a.audience + 's')}</span>${a.pinned ? ' <span class="tag t-a">Pinned</span>' : ''} ${a.is_active ? '<span class="tag t-g">Live</span>' : '<span class="tag t-n">Hidden</span>'}
+        <div class="m">${esc(a.body)}</div><div class="m">${when(a.created_at)}${a.expires_at ? ' • hides ' + when(a.expires_at) : ''} • read by ${num(a.reads)}</div></div></div>
+        <div class="acts"><button class="btn" data-act="ann-toggle" data-id="${esc(a.id)}" data-on="${a.is_active ? '0' : '1'}">${a.is_active ? 'Hide' : 'Show again'}</button><button class="btn r" data-act="ann-del" data-id="${esc(a.id)}">Delete</button></div></div>`).join('') : '<div class="empty">No announcements yet.</div>'}`;
+    },
+
+    async promos(v) {
+      const rows = await rpc('admin_list_promotions');
+      const total = rows.reduce((n, p) => n + Number(p.amount), 0), live = rows.filter(p => p.state === 'active').length;
+      const tone = s => s === 'active' ? 't-g' : s === 'queued' ? 't-b' : 't-n';
+      v.innerHTML = `<h2>Store promotions</h2>
+      <div class="grid"><div class="kpi"><small>Promotion revenue</small><b>${money(total)}</b><i>R1 per hour</i></div><div class="kpi"><small>Live now</small><b>${num(live)}</b><i>stores featured</i></div><div class="kpi"><small>Total bought</small><b>${num(rows.length)}</b><i>promotions</i></div></div>
+      <div style="margin-top:12px">${rows.length ? rows.map(p => `<div class="item"><div class="h"><div><b>${esc(p.store_name)}</b> <span class="tag ${tone(p.state)}">${esc(p.state)}</span><div class="m">${esc(p.owner_email)} • ${num(p.hours)} hours<br>${when(p.starts_at)} to ${when(p.ends_at)}</div></div><b>${money(p.amount)}</b></div></div>`).join('') : '<div class="empty">No promotions bought yet.</div>'}</div>`;
     },
 
     async support(v) {
@@ -193,10 +242,14 @@
 
     async settings(v) {
       const w = await rpc('admin_get_weather').catch(() => 'clear');
+      const ps = await rpc('admin_push_stats').catch(() => null);
       v.innerHTML = `<h2>Settings</h2>
       <div class="card"><h3>Weather (delivery fee)</h3><div class="m" style="color:var(--muted);margin-bottom:8px">When the weather is not "clear", R1.50 is added to every delivery fee.</div>
         <div class="row"><select id="weatherSel">${['clear', 'rain', 'storm'].map(x => `<option value="${x}" ${w === x ? 'selected' : ''}>${x[0].toUpperCase() + x.slice(1)}</option>`).join('')}</select><button class="btn g" data-act="weather">Save</button></div></div>
       <div class="card"><h3>Housekeeping</h3><div class="m" style="color:var(--muted);margin-bottom:8px">Cancels orders unfinished after 12 hours and switches inactive stores and riders offline. This also runs automatically.</div><button class="btn" data-act="cleanup">Run now</button></div>
+      <div class="card"><h3>Push notifications</h3>${ps ? `<div class="row"><span class="tag ${ps.configured ? 't-g' : 't-a'}">${ps.configured ? 'Server connected' : 'Not set up yet'}</span><span class="tag t-n">${num(ps.devices)} phones</span><span class="tag t-n">${num(ps.stores)} stores</span><span class="tag t-n">${num(ps.riders)} riders</span><span class="tag t-n">${num(ps.buyers)} buyers</span></div><div class="m" style="color:var(--muted);font-size:12.5px">${num(ps.waiting)} waiting to send • ${num(ps.failed)} failed${ps.configured ? '' : '<br>Finish the steps in PUSH-SETUP.txt to switch alerts on for closed apps.'}</div>` : '<div class="m" style="color:var(--muted)">Run the 06 SQL file to enable push notifications.</div>'}</div>
+      <div class="card"><h3>How BuyEasy earns</h3><div class="m" style="color:var(--muted);line-height:1.6">BuyEasy earns a fee <b>only when a customer pays with the wallet or a card</b>. Cash on delivery orders earn BuyEasy nothing. Store promotions (R1 per hour) are also counted.</div></div>
+      <div class="card"><h3>Going live</h3><div class="m" style="color:var(--muted);line-height:1.6">To remove all test orders, run <b>99-RESET-test-orders-RUN-ONCE.sql</b> in Supabase (change NO to YES inside it). Users, stores, products and riders are kept.</div></div>
       <div class="card"><h3>Payments</h3><div class="m" style="color:var(--muted)">Yoco is not connected yet. Wallet top-ups and payouts stay switched off until it is.</div></div>`;
     }
   };

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>BuyEasy — Store Dashboard</title>
-<link rel="manifest" href="manifest.json"><meta name="theme-color" content="#22c55e"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="BuyEasy"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="theme-color" content="#22c55e"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="mobile.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -14,6 +14,12 @@
 <script src="net-status.js"></script>
 <script src="alerts.js"></script>
 <script src="ratings.js"></script>
+<script src="badge.js"></script>
+<script src="announcements.js"></script>
+<script src="layout.js"></script>
+<script src="push.js"></script>
+<script>PushAlerts.init("store");</script>
+<script>BuyEasyAnnouncements.init("store");</script>
 <script src="activity.js"></script>
 <script src="config.js"></script>
 <script src="support.js"></script>
@@ -627,7 +633,7 @@ async function deleteProduct(productId) {
 
 async function loadOrders() {
   const { data, error } = await db.from('orders')
-    .select('id,order_number,status,customer_name,customer_phone,delivery_address,buyer_latitude,buyer_longitude,product_total,delivery_fee,total,payment_method,payment_status,created_at,updated_at,order_items(product_name,quantity,unit_price,subtotal),deliveries(status,rider_id)')
+    .select('id,order_number,status,customer_name,customer_phone,delivery_address,buyer_latitude,buyer_longitude,product_total,delivery_fee,total,payment_method,payment_status,fulfillment,dispatch_pool,created_at,updated_at,order_items(product_name,quantity,unit_price,subtotal),deliveries(status,rider_id)')
     .eq('store_id', currentStore.id)
     .order('created_at', { ascending: false });
   if (error) throw error;
@@ -647,6 +653,7 @@ async function runStoreOrderAction(orderId, action, successMessage) {
   }
 }
 window.acceptStoreOrder = orderId => runStoreOrderAction(orderId, 'accept', 'Order accepted. Prepare the items, then mark them ready for pickup.');
+window.completeStorePickup = async orderId => { if (!confirm('Confirm the customer has collected this order?')) return; try { const { error } = await db.rpc('store_complete_pickup', { p_order_id: orderId }); if (error) throw error; notify('Order completed.'); await loadOrders(); } catch (e) { notify(e.message || 'Could not complete this order.'); } };
 window.markStoreOrderReady = orderId => runStoreOrderAction(orderId, 'ready', 'Order marked ready for rider pickup.');
 function switchOrderTab(status, button) {
   currentOrderTab = status;
@@ -685,7 +692,12 @@ function renderOrders() {
     const hasBuyerPin = Number.isFinite(Number(order.buyer_latitude)) && Number.isFinite(Number(order.buyer_longitude)) && order.buyer_latitude != null && order.buyer_longitude != null;
     const mapQuery = hasBuyerPin ? `${order.buyer_latitude},${order.buyer_longitude}` : address;
     const mapLink = mapQuery ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}` : '';
-    const actions = order.status === 'pending'
+    const isPickup = order.fulfillment === 'pickup';
+    const actions = isPickup && ['accepted','preparing'].includes(order.status)
+      ? `<button class="btn-white" onclick="markStoreOrderReady('${escapeHTML(order.id)}')">Ready for customer pickup</button>`
+      : isPickup && order.status === 'ready'
+        ? `<button class="btn-green" onclick="completeStorePickup('${escapeHTML(order.id)}')">✅ Customer collected the order</button>`
+      : order.status === 'pending'
       ? `<button class="btn-white" onclick="acceptStoreOrder('${escapeHTML(order.id)}')">Accept Order</button>`
       : ['accepted','preparing'].includes(order.status)
         ? `<button class="btn-white" onclick="markStoreOrderReady('${escapeHTML(order.id)}')">Ready for Rider Pickup</button>`
@@ -704,6 +716,7 @@ function renderOrders() {
       <div class="store-order-customer-line">${personIcon}<b style="color:var(--text)">${escapeHTML(customerName)}</b>${order.customer_phone ? `<span>• ${escapeHTML(order.customer_phone)}</span>` : ''}</div>
       <div class="store-order-items">${items}</div>
       <div class="store-order-money"><span>Products</span><b>${money(order.product_total)}</b><span>Delivery</span><b>${money(order.delivery_fee)}</b><span class="grand-total">Order total</span><b class="grand-total">${money(order.total)}</b></div>
+      ${isPickup ? `<div class="store-cash-badge" style="background:rgba(59,130,246,.14);border-color:rgba(59,130,246,.4);color:#60a5fa">🚶 Customer pickup. No rider needed, the buyer collects at your store.</div>` : (order.dispatch_pool === 0 && order.status === 'ready' ? `<div class="store-cash-badge" style="background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.4);color:#f87171">⚠️ No rider is online for this order yet. It will be offered as soon as one goes online.</div>` : '')}
       ${order.payment_method === 'cash' ? `<div class="store-cash-badge">💵 Cash on delivery. The rider collects ${money(order.total)} from the buyer.</div>` : ''}
       <div class="store-order-address">${pinIcon}<span>${escapeHTML(address || 'No delivery address saved')}</span></div>
       <div class="store-order-actions">${actions || ''}${phone.length >= 9 ? `<a class="store-contact-link whatsapp" href="https://wa.me/${phone}?text=${waText}" target="_blank" rel="noopener noreferrer" aria-label="Message customer on WhatsApp">${waIcon}<span>WhatsApp customer</span></a>` : ''}${mapLink ? `<a class="store-contact-link" href="${mapLink}" target="_blank" rel="noopener noreferrer" aria-label="Open customer location in Maps">${pinIcon}<span>Open map</span></a>` : ''}</div>
@@ -785,6 +798,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 <script src="store-riders.js"></script>
+<script src="store-promotions.js"></script>
 <script src="store-alerts.js"></script>
 <script>document.addEventListener("DOMContentLoaded",function(){ if(window.BuyEasyHelp) BuyEasyHelp.mount("settings","store"); });</script>
 </body>

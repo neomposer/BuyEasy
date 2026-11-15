@@ -38,6 +38,7 @@ input,select,textarea{background:var(--card2);color:var(--text);border:1px solid
 .empty{color:var(--muted);text-align:center;padding:26px 10px}.err{color:#f87171;padding:14px}.stars{color:var(--amber);letter-spacing:1px}
 .two{display:grid;grid-template-columns:1fr;gap:12px}@media(min-width:800px){.two{grid-template-columns:1fr 1fr}}
 .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--text);color:#0b0d0c;padding:11px 18px;border-radius:12px;font-weight:800;z-index:50;display:none}
+.be-vbadge{display:inline-flex;vertical-align:-3px;margin-left:4px}
 table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;padding:6px 8px;letter-spacing:.5px}td{padding:9px 8px;border-top:1px solid var(--line)}
 .scroll{overflow-x:auto}
 </style>
@@ -52,6 +53,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;colo
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
 <script src="../supabase.js"></script>
 <script src="../net-status.js"></script>
+<script src="../badge.js"></script>
 <script src="admin-auth.js"></script>
 <script src="admin-app.js"></script>
 </body>
