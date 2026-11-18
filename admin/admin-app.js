@@ -49,17 +49,17 @@
   /* ---------------- actions ---------------- */
   async function action(kind, d) {
     try {
-      if (kind === 'store-review') { if (!confirm(`${d.dec === 'approved' ? 'Approve' : 'Reject'} this store?`)) return; await rpc('admin_review_store_application', { p_application_id: d.id, p_decision: d.dec }); toast('Done'); }
-      else if (kind === 'rider-review') { if (!confirm(`${d.dec === 'approved' ? 'Approve' : 'Reject'} this rider?`)) return; await rpc('admin_review_rider_application', { p_application_id: d.id, p_decision: d.dec }); toast('Done'); }
+      if (kind === 'store-review') { if (!(await BuyEasyUI.confirm(d.dec === 'approved' ? 'The store can start selling right away.' : 'The applicant will be told it was rejected.', { title: d.dec === 'approved' ? 'Approve this store?' : 'Reject this store?', okLabel: d.dec === 'approved' ? 'Approve' : 'Reject', danger: d.dec !== 'approved' }))) return; await rpc('admin_review_store_application', { p_application_id: d.id, p_decision: d.dec }); toast('Done'); }
+      else if (kind === 'rider-review') { if (!(await BuyEasyUI.confirm(d.dec === 'approved' ? 'The rider can ask stores to work for them.' : 'The applicant will be told it was rejected.', { title: d.dec === 'approved' ? 'Approve this rider?' : 'Reject this rider?', okLabel: d.dec === 'approved' ? 'Approve' : 'Reject', danger: d.dec !== 'approved' }))) return; await rpc('admin_review_rider_application', { p_application_id: d.id, p_decision: d.dec }); toast('Done'); }
       else if (kind === 'status') {
         const word = { flagged: 'flag', suspended: 'SUSPEND', active: 'clear' }[d.st];
-        if (!confirm(`Are you sure you want to ${word} ${d.email || 'this account'}?`)) return;
-        const note = d.st === 'active' ? '' : (prompt('Reason (optional):') || '');
+        if (!(await BuyEasyUI.confirm(`${d.email || 'This account'} will be ${d.st === 'active' ? 'cleared' : d.st === 'flagged' ? 'flagged for review' : 'suspended and blocked from using BuyEasy'}.`, { title: `${word[0].toUpperCase() + word.slice(1)} this account?`, okLabel: word[0].toUpperCase() + word.slice(1), danger: d.st === 'suspended', icon: d.st === 'active' ? '✅' : d.st === 'flagged' ? '🚩' : '⛔' }))) return;
+        const note = d.st === 'active' ? '' : (await BuyEasyUI.prompt('Reason (optional):', '', { title: 'Add a note', placeholder: 'e.g. Fake orders, complaints from stores' })) || '';
         await rpc('admin_set_account_status', { p_user_id: d.id, p_status: d.st, p_note: note }); toast('Account updated');
       }
       else if (kind === 'email') {
-        const ne = prompt(`New email for ${d.email}:`, d.email); if (!ne || ne.trim().toLowerCase() === String(d.email).toLowerCase()) return;
-        if (!confirm(`Change email from ${d.email} to ${ne.trim()}?\nThe user will be signed out and must log in with the new email.`)) return;
+        const ne = await BuyEasyUI.prompt(`New email for ${d.email}`, d.email, { title: 'Change email', placeholder: 'name@email.com', okLabel: 'Next' }); if (!ne || ne.trim().toLowerCase() === String(d.email).toLowerCase()) return;
+        if (!(await BuyEasyUI.confirm(`From ${d.email}\nto ${ne.trim()}\n\nThe user will be signed out and must log in with the new email.`, { title: 'Change this email?', okLabel: 'Change email', icon: '✉️' }))) return;
         await rpc('admin_change_user_email', { p_user_id: d.id, p_new_email: ne }); toast('Email changed');
       }
       else if (kind === 'reply') {
@@ -69,8 +69,8 @@
       }
       else if (kind === 'verify') {
         const make = d.v === '1';
-        if (!confirm(make ? `Give the Verified badge to ${d.email}?\nEveryone will see it as a sign of a trusted, well-rated member.` : `Remove the Verified badge from ${d.email}?`)) return;
-        const note = make ? (prompt('Why are they verified? (optional)') || '') : '';
+        if (!(await BuyEasyUI.confirm(make ? `${d.email} will show a Verified badge that everyone can see, as a sign of a trusted, well-rated member.` : `The Verified badge will be removed from ${d.email}.`, { title: make ? 'Give the Verified badge?' : 'Remove the badge?', okLabel: make ? 'Give badge' : 'Remove', icon: '🏅' }))) return;
+        const note = make ? (await BuyEasyUI.prompt('Why are they verified? (optional)', '', { title: 'Add a note', placeholder: 'e.g. 4.9 rating, 100 deliveries' })) || '' : '';
         await rpc('admin_set_verified', { p_user_id: d.id, p_verified: make, p_note: note }); toast(make ? 'Verified badge given' : 'Badge removed');
       }
       else if (kind === 'announce') {
@@ -80,7 +80,7 @@
         toast('Announcement published');
       }
       else if (kind === 'ann-toggle') { await rpc('admin_set_announcement', { p_id: d.id, p_active: d.on === '1', p_delete: false }); toast(d.on === '1' ? 'Announcement is live' : 'Announcement hidden'); }
-      else if (kind === 'ann-del') { if (!confirm('Delete this announcement for good?')) return; await rpc('admin_set_announcement', { p_id: d.id, p_active: false, p_delete: true }); toast('Deleted'); }
+      else if (kind === 'ann-del') { if (!(await BuyEasyUI.confirm('This announcement will be removed for everyone.', { title: 'Delete announcement?', okLabel: 'Delete', danger: true }))) return; await rpc('admin_set_announcement', { p_id: d.id, p_active: false, p_delete: true }); toast('Deleted'); }
       else if (kind === 'weather') { const v = $('weatherSel').value; await rpc('admin_set_weather', { p_condition: v }); toast('Weather set to ' + v); return; }
       else if (kind === 'cleanup') { const n = await rpc('cancel_stale_orders'); toast(`Cleanup done. ${n} old order(s) cancelled.`); return; }
       else if (kind === 'comments') { return showComments(d.id, d.email); }

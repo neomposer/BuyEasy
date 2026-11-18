@@ -1,5 +1,5 @@
 // BuyEasy service worker. Bump CACHE_VERSION on every deploy so phones never keep old code.
-const CACHE_VERSION = 'buyeasy-v9-2026-11-14';
+const CACHE_VERSION = 'buyeasy-v10-2026-11-16';
 const SHELL = ['/offline.html', '/icon-192.png', '/manifest.json'];
 
 self.addEventListener('install', e => {

@@ -3,7 +3,9 @@
    Android: works in Chrome. iPhone: the person must first "Add to Home Screen" (iOS 16.4+). */
 (function () {
   'use strict';
-  const db = window.supabaseClient; const PUB = window.BUYEASY && BUYEASY.vapidPublicKey;
+  const db = window.supabaseClient;
+  window.PushAlerts = { init() {} };                         // safe no-op until everything is ready
+  const PUB = window.BUYEASY && BUYEASY.vapidPublicKey;
   if (!db || !PUB) return;
   const ua = navigator.userAgent || '';
   const isIOS = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);

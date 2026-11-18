@@ -43,8 +43,8 @@
   }
   document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => { poll(); db && db.rpc('cancel_stale_orders').then(() => {}, () => {}); }, 2500);
-    setInterval(() => { if (!document.hidden) poll(); }, 15000);
-    setInterval(() => { if (!document.hidden && db) db.rpc('cancel_stale_orders').then(() => {}, () => {}); }, 300000);
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
+    BuyEasyPoll.every(poll, { fast: 15000, slow: 40000, relaxed: 45000 });
+    BuyEasyPoll.every(() => { if (db) db.rpc('cancel_stale_orders').then(() => {}, () => {}); }, { fast: 300000, slow: 300000, relaxed: 300000 });
+    BuyEasyPoll.realtime(['orders'], poll);
   });
 })();

@@ -6,7 +6,7 @@
   const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const money = v => 'R' + Number(v || 0).toFixed(2);
   const PRESETS = [[6, '6 h'], [12, '12 h'], [24, '1 day'], [72, '3 days'], [168, '7 days']];
-  let hours = 24, picked = new Set(), products = [], promos = [], balance = 0, mounted = false;
+  let hours = 24, picked = new Set(), products = [], promos = [], balance = 0, mounted = false, open = false;   // starts minimized
 
   function css() {
     if (document.getElementById('spCss')) return;
@@ -32,7 +32,10 @@
   function draw() {
     const box = document.getElementById('promoCard'); if (!box) return;
     const price = hours;
-    box.innerHTML = `<div class="sp-h"><div><b>📣 Promote your store</b><p>Appear at the top of the shop with a Sponsored label for shoppers within 15&nbsp;km. <b>R1 per hour</b>, you choose how long.</p></div></div>
+    const live = promos.find(p => p.state === 'active');
+    const sub = live ? `<span style="color:#22c55e;font-weight:800">● Live</span> • ends in ${left(live.ends_at)}` : 'R1 per hour • tap to open';
+    const header = `<div class="sp-h" data-toggle role="button" tabindex="0" style="cursor:pointer;align-items:center"><div><b>📣 Promote your store</b><p style="margin:3px 0 0">${sub}</p></div><span style="font-size:18px;color:var(--muted)">${open ? '▲' : '▼'}</span></div>`;
+    box.innerHTML = header + (!open ? '' : `<div class="sp-body"><p style="margin:12px 0 0;color:var(--muted);font-size:12.5px;line-height:1.5">Appear at the top of the shop with a Sponsored label for shoppers within 15&nbsp;km. <b>R1 per hour</b>, you choose how long.</p>
       <div class="sp-chips">${PRESETS.map(([h, l]) => `<button class="sp-chip ${hours === h ? 'on' : ''}" data-h="${h}">${l}</button>`).join('')}</div>
       <div class="sp-row"><label style="font-size:12px;color:var(--muted)">Or type your own hours</label><input id="spHours" type="number" min="1" max="720" value="${hours}"><span style="font-size:12px;color:var(--muted)">1 to 720 hours</span></div>
       <div class="sp-price"><div><small>Total price</small><b>${money(price)}</b></div><div style="text-align:right"><small>Your wallet</small><b style="font-size:16px">${money(balance)}</b></div></div>
@@ -42,7 +45,7 @@
       <button class="sp-c" disabled>💳 Pay with card (coming soon)</button></div>
       <div style="font-weight:900;margin:18px 0 0">My promotions</div>
       ${promos.length ? promos.map(p => `<div class="sp-item"><div><b>${p.hours} hours • ${money(p.amount)}</b><div style="color:var(--muted);font-size:12px;margin-top:2px">${p.state === 'active' ? 'Ends in ' + left(p.ends_at) : p.state === 'queued' ? 'Starts ' + new Date(p.starts_at).toLocaleString('en-ZA', { dateStyle: 'medium', timeStyle: 'short' }) : 'Ended ' + new Date(p.ends_at).toLocaleDateString('en-ZA', { dateStyle: 'medium' })}</div></div><span class="sp-st ${p.state}">${p.state}</span></div>`).join('')
-        : '<p style="color:var(--muted);font-size:12.5px;margin:6px 0 0">No promotions yet. Your first one starts as soon as you pay.</p>'}`;
+        : '<p style="color:var(--muted);font-size:12.5px;margin:6px 0 0">No promotions yet. Your first one starts as soon as you pay.</p>'}</div>`);
   }
   async function refresh() {
     if (typeof currentStore === 'undefined' || !currentStore) return;
@@ -59,11 +62,12 @@
     if (mounted) return; const stock = document.getElementById('stock'); if (!stock) return;
     css(); const c = document.createElement('div'); c.id = 'promoCard'; c.className = 'sp-card'; stock.insertBefore(c, stock.firstChild); mounted = true;
     c.addEventListener('click', async e => {
+      if (e.target.closest('[data-toggle]')) { open = !open; return draw(); }
       const h = e.target.closest('[data-h]'); if (h) { hours = Number(h.dataset.h); return draw(); }
       const p = e.target.closest('[data-p]'); if (p) { const id = p.dataset.p; if (picked.has(id)) picked.delete(id); else if (picked.size < 6) picked.add(id); return draw(); }
       const pay = e.target.closest('[data-pay]'); if (!pay) return;
       hours = Math.max(1, Math.min(720, Number(document.getElementById('spHours').value) || hours));
-      if (!confirm(`Pay ${money(hours)} from your wallet to promote your store for ${hours} hour(s)?`)) return;
+      if (!(await BuyEasyUI.confirm(`${money(hours)} will be taken from your wallet and your store will be featured for ${hours} hour(s).`, { title: 'Pay for promotion?', okLabel: `Pay ${money(hours)}`, icon: '📣' }))) return;
       pay.disabled = true;
       const { error } = await db.rpc('store_buy_promotion', { p_store_id: currentStore.id, p_hours: hours, p_product_ids: [...picked], p_tagline: (document.getElementById('spTag') || {}).value || '' });
       if (error) { alert(error.message); pay.disabled = false; return; }
@@ -79,5 +83,5 @@
   }
   const origOpen = window.openTab;
   if (typeof origOpen === 'function') window.openTab = function (id, el) { origOpen(id, el); if (id === 'stock') refresh(); };
-  document.addEventListener('DOMContentLoaded', () => { const t = setInterval(() => { if (typeof currentStore !== 'undefined' && currentStore) { clearInterval(t); mount(); refresh(); markVerified(); } }, 700); setInterval(() => { if (!document.hidden) refresh(); }, 60000); });
+  document.addEventListener('DOMContentLoaded', () => { const t = setInterval(() => { if (typeof currentStore !== 'undefined' && currentStore) { clearInterval(t); mount(); refresh(); markVerified(); } }, 700); BuyEasyPoll.every(refresh, { fast: 60000, slow: 120000, relaxed: 120000 }); });
 })();

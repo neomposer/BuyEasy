@@ -65,7 +65,10 @@
   /* ---------- location (only to find the NEAREST rider) ---------- */
   let locTimer = null;
   function sendLocation() {
-    if (!online || !navigator.geolocation) return;
+    if (!online) return;
+    const live = window.RiderTracking && RiderTracking.getPos && RiderTracking.getPos();
+    if (live && Date.now() - live.at < 120000) { db.rpc('rider_update_location', { p_lat: live.lat, p_lng: live.lng }).then(() => {}, () => {}); return; }
+    if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(p => { db.rpc('rider_update_location', { p_lat: p.coords.latitude, p_lng: p.coords.longitude }).then(() => {}, () => {}); }, () => {}, { enableHighAccuracy: false, maximumAge: 60000, timeout: 15000 });
   }
   function startLocation() { stopLocation(); sendLocation(); locTimer = setInterval(sendLocation, 60000); }
@@ -108,12 +111,12 @@
       if (s.status === 'rejected') alertBus().alert({ id: `link:${s.link_id}:rejected`, icon: '⚠️', title: 'Store declined your request', body: `${s.store_name} declined your request.`, ring: false });
     });
   }
-  const badge = s => { const m = { approved: ['#22c55e', 'Approved'], pending: ['#f59e0b', 'Waiting for store'], rejected: ['#ef4444', 'Declined'], removed: ['#9ca3af', 'Removed'], suspended: ['#ef4444', 'Suspended by store'] }[s] || ['#9ca3af', s];
+  const badge = s => { if (s.status === 'approved' && s.paused) return `<span style="color:#f59e0b;font-weight:800;font-size:11px">⏸ Paused by you</span>`; const m = { approved: ['#22c55e', 'Approved'], pending: ['#f59e0b', 'Waiting for store'], rejected: ['#ef4444', 'Declined'], removed: ['#9ca3af', 'Removed'], suspended: ['#ef4444', 'Suspended by store'] }[s] || ['#9ca3af', s];
     return `<span style="color:${m[0]};font-weight:800;font-size:11px">${esc(m[1])}</span>`; };
   function drawStores() {
     const el = document.getElementById('myStoresPanel'); if (!el) return;
-    const mine = myStores.length ? myStores.map(s => `<div class="hist-item" style="align-items:center"><div><b>${esc(s.store_name || 'Store')}</b><div>${badge(s.status)}</div></div>
-      <div>${['approved', 'pending'].includes(s.status) ? `<button class="btn-white" style="padding:8px 12px;font-size:12px" onclick="leaveStore('${esc(s.store_id)}')">${s.status === 'pending' ? 'Cancel' : 'Leave'}</button>`
+    const mine = myStores.length ? myStores.map(s => `<div class="hist-item" style="align-items:center"><div><b>${esc(s.store_name || 'Store')}</b><div>${badge(s)}</div></div>
+      <div>${['approved', 'pending'].includes(s.status) ? `<button class="btn-white" style="padding:9px 14px;font-size:12px" onclick="storeMenu('${esc(s.store_id)}')">Manage ▾</button>`
         : s.status === 'suspended' ? '' : `<button class="btn-green" style="padding:8px 12px;font-size:12px" onclick="requestStore('${esc(s.store_id)}')">Ask again</button>`}</div></div>`).join('')
       : '<p class="status">You are not working for any store yet. Ask a store below. You only see orders from stores that approve you.</p>';
     const avail = availableStores.length ? availableStores.map(s => `<div class="hist-item" style="align-items:center"><div><b>${esc(s.store_name || 'Store')}</b></div>
@@ -123,8 +126,25 @@
   }
   async function renderStores() { try { await loadStores(); drawStores(); } catch (e) { const el = document.getElementById('myStoresPanel'); if (el) el.innerHTML = `<p class="status">Could not load stores: ${esc(e.message)}</p>`; } }
   async function requestStore(id) { try { await session(); const { error } = await db.rpc('rider_request_store', { p_store_id: id }); if (error) throw error; done('Request sent. The store must approve you.'); await renderStores(); } catch (e) { alert(e.message || 'Could not send request.'); } }
-  async function leaveStore(id) { if (!confirm('Stop working for this store? You will no longer see its orders.')) return;
-    try { await session(); const { error } = await db.rpc('rider_leave_store', { p_store_id: id }); if (error) throw error; busy = false; await Promise.all([renderStores(), renderJobs()]); } catch (e) { alert(e.message || 'Could not update.'); } }
+  function storeMenu(id) {
+    const st = myStores.find(x => x.store_id === id); if (!st) return;
+    const items = [];
+    if (st.status === 'approved') items.push(st.paused
+      ? { icon: '▶️', label: 'Resume this store', desc: 'Start getting its orders again', onClick: () => pauseStore(id, false) }
+      : { icon: '⏸️', label: 'Pause this store', desc: 'Stop getting its orders. Resume any time.', onClick: () => pauseStore(id, true) });
+    items.push({ icon: '🗑️', label: st.status === 'pending' ? 'Cancel my request' : 'Leave this store', desc: st.status === 'pending' ? 'Withdraw your request' : 'You must ask again to come back', danger: true, onClick: () => leaveStore(id) });
+    BuyEasyUI.sheet({ title: st.store_name || 'Store', subtitle: st.status === 'pending' ? 'Waiting for the store' : st.paused ? 'Paused by you' : 'Approved', items });
+  }
+  async function pauseStore(id, paused) {
+    try { await session(); const { error } = await db.rpc('rider_pause_store', { p_store_id: id, p_paused: paused }); if (error) throw error;
+      done(paused ? 'Store paused. You will not get its orders until you resume.' : 'Store resumed. You can get its orders again.'); busy = false; await Promise.all([renderStores(), renderJobs()]); }
+    catch (e) { console.error(e); alert(e.message || 'Could not update this store.'); }
+  }
+  async function leaveStore(id) {
+    const ok = await BuyEasyUI.confirm('You will no longer see this store\'s orders. You must ask again if you want to return.', { title: 'Leave this store?', okLabel: 'Leave store', danger: true, icon: '🚪' });
+    if (!ok) return;
+    try { await session(); const { error } = await db.rpc('rider_leave_store', { p_store_id: id }); if (error) throw error; busy = false; await Promise.all([renderStores(), renderJobs()]); } catch (e) { alert(e.message || 'Could not update.'); }
+  }
 
   /* ---------- INCOMING JOBS (only ready + not yet accepted) ---------- */
   async function loadJobs() {
@@ -265,7 +285,7 @@
   async function completeDel(id) {
     try {
       const o = deliveries.find(x => x.id === id);
-      if (o?.payment_method === 'cash' && !confirm(`Cash order. Have you collected ${money(o.total)} from the buyer?`)) return;
+      if (o?.payment_method === 'cash' && !(await BuyEasyUI.confirm(`Please confirm you have collected ${money(o.total)} in cash from the buyer.`, { title: 'Cash collected?', okLabel: 'Yes, I have the cash', icon: '💵' }))) return;
       const { data, error } = await db.rpc('rider_deliver_order', { p_order_id: id });
       if (error) throw error;
       ['cash:', 'cashdrop:'].forEach(p => alertBus().resolve(p + id));
@@ -304,15 +324,15 @@
   }
 
   Object.assign(window, { renderJobs, acceptJob, markPickedUp, completeDel, trackOrder, renderDeliveries, updateStats, renderHistory,
-    renderStores, requestStore, leaveStore, toggleOnline, riderGoOffline });
+    renderStores, requestStore, leaveStore, storeMenu, pauseStore, toggleOnline, riderGoOffline });
   window.withdraw = () => alert('Withdrawals are not connected yet. Your balance has not been changed.');
 
   async function refreshAll() { try { await loadOnline(); } catch (e) { console.warn(e); } await Promise.all([renderJobs(), renderDeliveries(), updateStats(), renderHistory()]); }
   document.addEventListener('DOMContentLoaded', () => {
     refreshAll();
     db.rpc('cancel_stale_orders').then(() => {}, () => {});
-    setInterval(() => { if (!document.hidden) { renderJobs(); renderDeliveries(); } }, REFRESH_MS);
-    setInterval(() => { if (!document.hidden) { updateStats(); db.rpc('cancel_stale_orders').then(() => {}, () => {}); } }, 300000);
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) { renderJobs(); renderDeliveries(); } });
+    BuyEasyPoll.every(() => Promise.all([renderJobs(), renderDeliveries()]), { fast: REFRESH_MS, slow: 40000, relaxed: 45000 });
+    BuyEasyPoll.every(() => { updateStats(); db.rpc('cancel_stale_orders').then(() => {}, () => {}); }, { fast: 300000, slow: 300000, relaxed: 300000 });
+    BuyEasyPoll.realtime(['orders'], () => { renderJobs(); renderDeliveries(); });
   }, { once: true });
 })();

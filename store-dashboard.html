@@ -10,7 +10,10 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="ui.js"></script>
+<script src="config.js"></script>
 <script src="supabase.js"></script>
+<script src="poll.js"></script>
 <script src="net-status.js"></script>
 <script src="alerts.js"></script>
 <script src="ratings.js"></script>
@@ -21,7 +24,6 @@
 <script>PushAlerts.init("store");</script>
 <script>BuyEasyAnnouncements.init("store");</script>
 <script src="activity.js"></script>
-<script src="config.js"></script>
 <script src="support.js"></script>
 
 <script src="role-switch.js"></script>
@@ -78,6 +80,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 </style>
 <link rel="stylesheet" href="polish.css">
 <script src="polish.js"></script>
+<script src="media.js"></script>
 </head>
 <body>
 <div id="brandHeader"><div class="brand-left"><span class="brand-logo">🛒</span> BuyEasy</div><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><div style="font-size:10px;color:var(--muted);font-weight:800">STORE • SELL LOCAL</div><button onclick="switchDashboardRole('buyer','buyer-dashboard.html')" class="pill">🛍️ Buyer</button><button id="storeRiderSwitch" style="display:none" onclick="switchDashboardRole('rider','rider-dashboard.html')" class="pill">🏍️ Rider</button></div></div>
@@ -118,7 +121,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
  <div id="stock" class="section">
   <div style="padding:10px 4px 6px"><h2 style="margin:0;font-size:20px">🗄️ Stock</h2><p style="margin:4px 0;color:var(--muted);font-size:11px">Products and media are stored in Supabase</p></div>
   <div class="mini-card"><div class="mini-head" onclick="toggleMini('addProdBody')">Add Product <span>⌄</span></div><div id="addProdBody" class="mini-body">
-   <label class="bh-label">Product Media (max 5, video ≤30 seconds)</label><input id="p_media" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" multiple class="bh-field" onchange="handleMediaSelect(event)">
+   <label class="bh-label">Product Media (max 5, video ≤30 seconds). Files are shrunk automatically.</label><input id="p_media" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" multiple class="bh-field" onchange="handleMediaSelect(event)">
    <div id="mediaPreview" class="media-grid"></div>
    <label class="bh-label">Product Name</label><input id="p_name" class="bh-field" maxlength="120">
    <label class="bh-label">Description</label><textarea id="p_description" class="bh-field" rows="3" maxlength="1000"></textarea>
@@ -285,7 +288,7 @@ async function initialiseDashboard() {
     loadTheme();
     await Promise.all([loadProducts(), loadOrders(), loadWalletAndTransactions()]);
     setTimeout(initStoreMap, 500);
-    setInterval(refreshDashboard, 20000);
+    BuyEasyPoll.every(refreshDashboard, { fast: 20000, slow: 45000, relaxed: 45000 });
   } catch (error) {
     console.error('Store dashboard initialisation failed:', error);
     notify('Dashboard could not load: ' + (error.message || 'Unknown error'));
@@ -370,7 +373,7 @@ function previewStorePic(event) {
   const file = event.target.files && event.target.files[0];
   if (!file) return;
   if (!['image/jpeg','image/png','image/webp'].includes(file.type)) return notify('Use JPG, PNG or WebP.');
-  if (file.size > 5 * 1024 * 1024) return notify('Store logo must be 5 MB or smaller.');
+  if (file.size > 25 * 1024 * 1024) return notify('Store logo must be 25 MB or smaller.');
   storeLogoFile = file;
   const url = URL.createObjectURL(file);
   $('s_pic_preview').src = url;
@@ -410,8 +413,9 @@ async function saveProfile() {
     if (storeLogoFile) {
       const ext = storeLogoFile.type === 'image/png' ? 'png' : storeLogoFile.type === 'image/webp' ? 'webp' : 'jpg';
       const path = `${currentStore.id}/store-logo/${crypto.randomUUID()}.${ext}`;
-      const blob = await compressImage(storeLogoFile, 700, 0.82);
-      logoUrl = await uploadPublicFile(new File([blob], `store-logo.${ext}`, { type: 'image/jpeg' }), path);
+      const small = await BuyEasyMedia.image(storeLogoFile, { maxDim: 512, maxKB: 45 });
+      const smallPath = `${currentStore.id}/store-logo/${crypto.randomUUID()}.${small.name.split('.').pop()}`;
+      logoUrl = await uploadPublicFile(small, smallPath);
     }
 
     const { data: updatedStore, error: storeError } = await db.from('stores')
@@ -518,19 +522,26 @@ async function handleMediaSelect(event) {
   const files = Array.from(event.target.files || []);
   if (selectedMedia.length + files.length > 5) { notify('Maximum 5 media files per product.'); event.target.value = ''; return; }
   for (const file of files) {
-    if (file.type.startsWith('image/')) {
-      if (!['image/jpeg','image/png','image/webp','image/gif'].includes(file.type)) { notify(`Unsupported image: ${file.name}`); continue; }
-      if (file.size > 5 * 1024 * 1024) { notify(`${file.name} exceeds 5 MB.`); continue; }
-      selectedMedia.push({ file, type: 'image', preview: URL.createObjectURL(file) });
-    } else if (file.type.startsWith('video/')) {
-      if (!['video/mp4','video/webm'].includes(file.type)) { notify('Only MP4 and WebM videos are supported.'); continue; }
-      if (file.size > 8 * 1024 * 1024) { notify(`${file.name} exceeds 8 MB.`); continue; }
-      try {
+    try {
+      if (file.type.startsWith('image/')) {
+        if (!/^image\/(jpeg|png|webp|gif|heic|heif)$/i.test(file.type)) { notify(`Unsupported image: ${file.name}`); continue; }
+        if (file.size > 25 * 1024 * 1024) { notify(`${file.name} is too large (25 MB max).`); continue; }
+        const small = await BuyEasyMedia.image(file, { maxDim: 1000, maxKB: 120 });
+        selectedMedia.push({ file: small, type: 'image', preview: URL.createObjectURL(small) });
+        notify(`Photo ready: ${BuyEasyMedia.kb(file.size)} → ${BuyEasyMedia.kb(small.size)}`);
+      } else if (file.type.startsWith('video/')) {
+        if (file.size > 80 * 1024 * 1024) { notify(`${file.name} is too large (80 MB max).`); continue; }
         const duration = await checkVideoDuration(file);
         if (duration > 30) { notify(`${file.name} is longer than 30 seconds.`); continue; }
-        selectedMedia.push({ file, type: 'video', preview: URL.createObjectURL(file) });
-      } catch (error) { notify(error.message); }
-    }
+        const prog = BuyEasyUI.progress('Making your video smaller…');
+        try {
+          const small = await BuyEasyMedia.video(file, { maxSeconds: 30, onProgress: p => prog.update('Making your video smaller…', p, p + '% • this keeps your store fast and cheap') });
+          prog.done();
+          selectedMedia.push({ file: small, type: 'video', preview: URL.createObjectURL(small) });
+          notify(`Video ready: ${BuyEasyMedia.kb(file.size)} → ${BuyEasyMedia.kb(small.size)}`);
+        } catch (e) { prog.done(); notify(e.message || 'Could not prepare this video.'); }
+      }
+    } catch (error) { notify(error.message || 'Could not prepare this file.'); }
   }
   renderMediaPreview();
   event.target.value = '';
@@ -613,7 +624,7 @@ async function addProduct() {
 }
 
 async function deleteProduct(productId) {
-  if (!confirm('Delete this product and its media?')) return;
+  if (!(await BuyEasyUI.confirm('The product and its photos or video will be deleted for good.', { title: 'Delete this product?', okLabel: 'Delete', danger: true }))) return;
   const { data: media, error: mediaReadError } = await db.from('product_media')
     .select('media_url').eq('product_id', productId).eq('store_id', currentStore.id);
   if (mediaReadError) return notify('Could not read product media: ' + mediaReadError.message);
@@ -653,7 +664,7 @@ async function runStoreOrderAction(orderId, action, successMessage) {
   }
 }
 window.acceptStoreOrder = orderId => runStoreOrderAction(orderId, 'accept', 'Order accepted. Prepare the items, then mark them ready for pickup.');
-window.completeStorePickup = async orderId => { if (!confirm('Confirm the customer has collected this order?')) return; try { const { error } = await db.rpc('store_complete_pickup', { p_order_id: orderId }); if (error) throw error; notify('Order completed.'); await loadOrders(); } catch (e) { notify(e.message || 'Could not complete this order.'); } };
+window.completeStorePickup = async orderId => { if (!(await BuyEasyUI.confirm('Only confirm after the customer has taken the items.', { title: 'Customer collected the order?', okLabel: 'Yes, collected', icon: '✅' }))) return; try { const { error } = await db.rpc('store_complete_pickup', { p_order_id: orderId }); if (error) throw error; notify('Order completed.'); await loadOrders(); } catch (e) { notify(e.message || 'Could not complete this order.'); } };
 window.markStoreOrderReady = orderId => runStoreOrderAction(orderId, 'ready', 'Order marked ready for rider pickup.');
 function switchOrderTab(status, button) {
   currentOrderTab = status;

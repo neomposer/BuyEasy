@@ -30,26 +30,29 @@
   function person(r, state, acts) {
     const t = TRANSPORT[r.transport_type] || r.transport_type || '';
     const info = window.BuyEasyBadge ? BuyEasyBadge.stars(r) : '';
-    return `<div class="sr-card"><div class="sr-av">${esc((r.full_name || 'R').trim().charAt(0).toUpperCase())}<i class="${r.is_online && r.status === 'approved' ? 'on' : ''}"></i></div>
+    return `<div class="sr-card"><div class="sr-av">${esc((r.full_name || 'R').trim().charAt(0).toUpperCase())}<i class="${r.is_online && r.status === 'approved' && !r.rider_paused ? 'on' : ''}"></i></div>
       <div class="sr-main"><b>${esc(r.full_name || 'Rider')}${r.is_verified && window.BuyEasyBadge ? BuyEasyBadge.icon(15) : ''}</b>
       <div class="sr-sub">${esc(r.phone || '')}${t ? ' • ' + esc(t) : ''}${info ? ' • ' + info : ''}</div>${state}</div><div class="sr-acts">${acts}</div></div>`;
   }
-  const stateTag = r => r.status === 'suspended' ? '<span class="sr-state sus">Suspended</span>'
+  const stateTag = r => r.status === 'suspended' ? '<span class="sr-state sus">Suspended by you</span>'
+    : r.rider_paused ? '<span class="sr-state off">⏸ Paused by the rider</span>'
     : r.is_online ? '<span class="sr-state on">● Online now</span>' : `<span class="sr-state off">Offline${r.last_seen_at ? ' • seen ' + ago(r.last_seen_at) : ''}</span>`;
 
-  function menuFor(r) {
-    const items = r.status === 'suspended'
-      ? `<button data-do="approved" data-id="${esc(r.link_id)}">✅ Reinstate rider<small>Allow orders again</small></button>`
-      : `<button data-do="suspended" data-id="${esc(r.link_id)}">⏸ Suspend rider<small>Stop orders, keep on your list</small></button>`;
-    return items + `<button class="danger" data-do="removed" data-id="${esc(r.link_id)}">🗑 Remove rider<small>They must ask again to return</small></button>`;
+  function openSheet(r) {
+    const nm = r.full_name || 'Rider';
+    const items = [];
+    if (r.status === 'suspended') items.push({ icon: '✅', label: 'Reinstate rider', desc: 'Allow this rider to get your orders again', onClick: () => review(r.link_id, 'approved') });
+    else items.push({ icon: '⏸️', label: 'Suspend rider', desc: 'Stop their orders but keep them on your list', onClick: () => review(r.link_id, 'suspended') });
+    items.push({ icon: '🗑️', label: 'Remove rider', desc: 'They must ask again to work for you', danger: true, onClick: () => review(r.link_id, 'removed') });
+    BuyEasyUI.sheet({ title: nm, subtitle: r.status === 'suspended' ? 'Suspended' : r.rider_paused ? 'Paused by the rider' : (r.is_online ? 'Online now' : 'Offline'), items });
   }
 
   function draw() {
-    css(); closeMenu();
+    css();
     const box = el('ridersBody'); if (!box) return;
     const pending = rows.filter(r => r.status === 'pending');
     const mine = rows.filter(r => ['approved', 'suspended'].includes(r.status)).sort((a, b) => Number(b.is_online) - Number(a.is_online));
-    const online = mine.filter(r => r.status === 'approved' && r.is_online).length;
+    const online = mine.filter(r => r.status === 'approved' && r.is_online && !r.rider_paused).length;
     const badge = el('ridersBadge'); if (badge) badge.textContent = pending.length ? ` (${pending.length})` : '';
     const nb = el('ridersBadgeNav'); if (nb) nb.textContent = pending.length ? String(pending.length) : '';
     box.innerHTML = `<div class="sr-sum"><span class="${online ? 'on' : ''}">● ${online} online</span><span>${mine.filter(r => r.status === 'approved').length} approved</span><span>${pending.length} waiting</span></div>
@@ -60,18 +63,11 @@
         : '<p class="status" style="margin-top:8px">You have no approved riders yet. <b>Without an online rider, buyers must collect orders from your store themselves.</b></p>'}`;
   }
 
-  function closeMenu() { if (openMenu) { openMenu.remove(); openMenu = null; } }
   document.addEventListener('click', e => {
     const t = e.target;
-    const menuBtn = t.closest && t.closest('[data-menu]');
+    const menuBtn = t.closest && t.closest('#ridersBody [data-menu]');
     const act = t.closest && t.closest('#ridersBody [data-do]');
-    const hadOpen = openMenu; closeMenu();
-    if (menuBtn) {
-      if (hadOpen && hadOpen.dataset.for === menuBtn.dataset.menu) return;      // tapping again closes it
-      const r = rows.find(x => x.link_id === menuBtn.dataset.menu); if (!r) return;
-      const menu = document.createElement('div'); menu.className = 'sr-menu'; menu.dataset.for = r.link_id; menu.innerHTML = menuFor(r);
-      menuBtn.closest('.sr-card').appendChild(menu); openMenu = menu; return;
-    }
+    if (menuBtn) { const r = rows.find(x => x.link_id === menuBtn.dataset.menu); if (r) openSheet(r); return; }
     if (act) review(act.dataset.id, act.dataset['do']);
   });
 
@@ -87,8 +83,14 @@
     finally { busy = false; }
   }
   async function review(linkId, decision) {
-    const text = { approved: 'Approve this rider for your store?', rejected: 'Decline this rider?', suspended: 'Suspend this rider? They will stop receiving your orders until you reinstate them.', removed: 'Remove this rider from your store? They must ask again to return.' }[decision];
-    if (!confirm(text)) return;
+    const copy = {
+      approved: ['Approve this rider?', 'They will be able to see and deliver your orders.', 'Approve', false, '✅'],
+      rejected: ['Decline this request?', 'The rider will be told you declined.', 'Decline', false, '✋'],
+      suspended: ['Suspend this rider?', 'They stop getting your orders until you reinstate them.', 'Suspend', true, '⏸️'],
+      removed: ['Remove this rider?', 'They must ask again to work for your store.', 'Remove', true, '🗑️']
+    }[decision];
+    const ok = await BuyEasyUI.confirm(copy[1], { title: copy[0], okLabel: copy[2], danger: copy[3], icon: copy[4] });
+    if (!ok) return;
     try {
       const { error } = await client().rpc('store_review_rider', { p_link_id: linkId, p_decision: decision });
       if (error) throw error;
@@ -100,5 +102,5 @@
 
   const originalOpenTab = window.openTab;
   if (typeof originalOpenTab === 'function') window.openTab = function (id, element) { originalOpenTab(id, element); if (id === 'riders') load(); };
-  document.addEventListener('DOMContentLoaded', () => { setTimeout(load, 1500); setInterval(() => { if (!document.hidden) load(); }, 30000); });
+  document.addEventListener('DOMContentLoaded', () => { setTimeout(load, 1500); BuyEasyPoll.every(load, { fast: 30000, slow: 60000, relaxed: 60000 }); BuyEasyPoll.realtime(['store_rider_links'], load); });
 })();

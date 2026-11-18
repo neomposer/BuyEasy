@@ -10,7 +10,10 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+<script src="ui.js"></script>
+<script src="config.js"></script>
 <script src="supabase.js"></script>
+<script src="poll.js"></script>
 <script src="net-status.js"></script>
 <script src="alerts.js"></script>
 <script src="ratings.js"></script>
@@ -21,7 +24,6 @@
 <script>PushAlerts.init("rider");</script>
 <script>BuyEasyAnnouncements.init("rider");</script>
 <script src="activity.js"></script>
-<script src="config.js"></script>
 <script src="support.js"></script>
 
 <script src="rider-tracking.js"></script>
@@ -264,6 +266,7 @@ function toggleTheme(){let isLight=document.body.classList.toggle('light');local
 async function logout(){ isOnline=false; try{ if(window.riderGoOffline) await riderGoOffline(); }catch(e){} localStorage.removeItem('bhv2_email'); localStorage.removeItem('bhv2_role'); localStorage.removeItem('v2_email'); localStorage.removeItem('v2_role'); location.href='index.html'; }
 
 loadRider();initMap();
+setTimeout(()=>{ if(window.RiderTracking) RiderTracking.autoStart(); },1200);
 </script>
 
 <!-- APP DOWNLOAD BAR - VISIBLE TO ALL USERS -->

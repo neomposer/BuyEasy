@@ -8,7 +8,10 @@
 <link rel="stylesheet" href="mobile.css">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+<script src="ui.js"></script>
+<script src="config.js"></script>
 <script src="supabase.js"></script>
+<script src="poll.js"></script>
 <script src="net-status.js"></script>
 <script src="alerts.js"></script>
 <script src="ratings.js"></script>
@@ -19,7 +22,6 @@
 <script>PushAlerts.init("buyer");</script>
 <script>BuyEasyAnnouncements.init("buyer");</script>
 <script src="activity.js"></script>
-<script src="config.js"></script>
 <script src="support.js"></script>
 
 <script>try{for(let i=localStorage.length-1;i>=0;i--){let k=localStorage.key(i)||"";if(k==="v2_saved_cards"||k==="bhv2_cards"||k.startsWith("v2_cards_")||k.startsWith("v2_saved_cards_")||k.startsWith("v2_buyer_cards_")||k.startsWith("bhv2_cards_"))localStorage.removeItem(k);}}catch(e){console.warn("Could not clear old BUYEasy card cache",e);}</script>
@@ -522,7 +524,7 @@ function renderCardListInModal(){
   el.innerHTML=cards.map(c=>`<div class="card-item"><div><b>${c.brand} •••• ${c.last4}</b><div style="font-size:10px;color:var(--muted)">${c.name}</div></div><button onclick="useCard('${c.id}'); closeCardModal();" class="pill">Use this</button></div>`).join('');
 }
 function useCard(id){ let cards=getCards(); let c=cards.find(x=>x.id===id); if(!c) return; selectedCardId=id; document.getElementById('cardPayInfo').textContent=`${c.brand} •••• ${c.last4} selected`; setPay('card'); showDone('Card selected: •••• '+c.last4); closeCardModal(); }
-function deleteCard(id){ if(!confirm('Delete card?')) return; let cards=getCards().filter(c=>c.id!==id); localStorage.setItem('v2_cards_'+email, JSON.stringify(cards)); renderSavedCards(); renderCardListInModal(); showDone('Card deleted'); }
+async function deleteCard(id){ if(!(await BuyEasyUI.confirm('This saved card will be removed from your account.',{title:'Delete card?',okLabel:'Delete',danger:true}))) return; let cards=getCards().filter(c=>c.id!==id); localStorage.setItem('v2_cards_'+email, JSON.stringify(cards)); renderSavedCards(); renderCardListInModal(); showDone('Card deleted'); }
 function validateCardInputs(){
   let num=document.getElementById('c_num').value.replace(/\s/g,''); let exp=document.getElementById('c_exp').value.trim(); let cvv=document.getElementById('c_cvv').value.trim(); let name=document.getElementById('c_name').value.trim();
   if(num.length<13 || num.length>19) return 'Enter valid card number';
@@ -806,7 +808,7 @@ function checkout(){
 
  if(selectedPay==='card' && window._tempCard){
    setTimeout(()=>{
-     if(confirm(`Save card •••• ${window._tempCard.last4} for one-click next time?`)){
+     if(false){
        let cards=getCards(); let card={id:Date.now().toString(), brand:window._tempCard.brand, last4:window._tempCard.last4, exp:window._tempCard.exp, name:window._tempCard.name, full:window._tempCard.num};
        cards.unshift(card); localStorage.setItem('v2_cards_'+email, JSON.stringify(cards)); renderSavedCards(); showDone('Card saved •••• '+card.last4);
      }
@@ -992,13 +994,13 @@ function closeMapModal(){ document.getElementById('mapModal').classList.remove('
 try{ let t=localStorage.getItem('v2_cart_'+email); if(t && t.length>100000) localStorage.removeItem('v2_cart_'+email); }catch(e){}
 loadBuyer();renderShop();renderCart();renderOrders();updateStats();renderHistory();renderFavs();renderSavedCards();
 
-if(navigator.geolocation){ navigator.geolocation.getCurrentPosition(p=>{ if(!buyerLatLng) buyerLatLng=[p.coords.latitude,p.coords.longitude]; renderShop(); },()=>{}, {enableHighAccuracy:true}); }
-setInterval(()=>{
+/* location is detected automatically by buyer-location.js */
+BuyEasyPoll.every(()=>{
   renderShop(); 
   updateStats(); 
   // Refresh persisted orders instead of repainting the legacy localStorage list.
   if(window.BuyerSupabase && typeof BuyerSupabase.renderOrders==='function') BuyerSupabase.renderOrders();
-}, 15000);
+}, { fast: 20000, slow: 60000, relaxed: 60000 });
 
 // === BUYER VIEW ALL IMAGES GALLERY ===
 let galleryMedia=[], galleryIndex=0;
@@ -1127,43 +1129,10 @@ function getBuyerCards(){
 
 <script>
 // ADD CARD MODAL - SAVES TO WALLET-GUARD KEYS
-window.openAddCard = window.openAddCard || function(){
-  let holder = prompt('Card Holder Name:');
-  if(!holder) return;
-  let number = prompt('Card Number (16 digits):\n4242 4242 4242 4242');
-  if(!number || number.replace(/\s/g,'').length < 12) { alert('Invalid card number'); return; }
-  let exp = prompt('Expiry MM/YY:\n12/28');
-  if(!exp) return;
-  let cvc = prompt('CVC:\n123');
-  if(!cvc) return;
-
-  let cleanNum = number.replace(/\s/g,'');
-  let last4 = cleanNum.slice(-4);
-  let card = {
-    id: Date.now(),
-    holder: holder,
-    number: cleanNum,
-    last4: last4,
-    cardNumber: cleanNum,
-    exp: exp,
-    cvc: cvc,
-    brand: cleanNum.startsWith('4')?'Visa':cleanNum.startsWith('5')?'Mastercard':'Card',
-    addedAt: new Date().toISOString()
-  };
-
-  // SAVE TO ALL KEYS WALLET-GUARD CHECKS
-  let email=''; try{ email=JSON.parse(localStorage.getItem('bhv2_session')||'{}').email||'buyer@test.com'; }catch{}
-  if(!email) email='buyer@test.com';
-  let keys = ['v2_cards_'+email, 'v2_saved_cards_'+email, 'bhv2_cards_'+email];
-  keys.forEach(k=>{
-    let arr=[]; try{ arr=JSON.parse(localStorage.getItem(k)||'[]'); if(!Array.isArray(arr)) arr=[]; }catch{ arr=[]; }
-    arr.push(card);
-    localStorage.setItem(k, JSON.stringify(arr));
-  });
-
-  alert('✅ Card *'+last4+' linked! You can now Add Money.');
-  if(window.updateAddMoneyButton) window.updateAddMoneyButton();
-  location.reload();
+// Cards are not stored in the browser. Secure card payments arrive with Yoco.
+try { Object.keys(localStorage).filter(k => /^(v2_cards_|v2_saved_cards_|bhv2_cards_)/.test(k)).forEach(k => localStorage.removeItem(k)); } catch (e) {}
+window.openAddCard = function () {
+  BuyEasyUI.alert('We are adding secure card payments with Yoco very soon. For now you can pay with your BuyEasy wallet or cash on delivery. Your card details are never stored on this phone.', { dialog: true, title: 'Cards coming soon', icon: '💳' });
 };
 
 // Make Saved Cards header clickable to add card
@@ -1338,6 +1307,7 @@ document.addEventListener('DOMContentLoaded', loadStoreApplicationStatus);
 <script src="rider-applications.js"></script>
 <script src="buyer-supabase.js"></script>
 <script src="buyer-alerts.js"></script>
+<script src="buyer-location.js"></script>
 <script>document.addEventListener("DOMContentLoaded",function(){ if(window.BuyEasyHelp) BuyEasyHelp.mount("settings","buyer"); });</script>
 </body>
 </html>

@@ -5,7 +5,7 @@ window.RiderTracking = (function () {
   'use strict';
   const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   let map = null, mRider = null, mStore = null, mBuyer = null, lnMain = null, lnLeg = null;
-  let watchId = null, pos = null, active = null, gpsMsg = '';
+  let watchId = null, pos = null, active = null, gpsMsg = '', acc = null, fixAt = 0, hiAcc = false, centered = false, mAcc = null;
 
   const dot = c => L.divIcon({ className: '', iconSize: [22, 22], iconAnchor: [11, 11],
     html: `<div style="width:16px;height:16px;background:${c};border:3px solid #fff;border-radius:50%;box-shadow:0 0 10px ${c}"></div>` });
@@ -24,25 +24,50 @@ window.RiderTracking = (function () {
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM' }).addTo(map);
   }
   function clearLayers() {
-    [mRider, mStore, mBuyer, lnMain, lnLeg].forEach(l => { if (l && map) map.removeLayer(l); });
-    mRider = mStore = mBuyer = lnMain = lnLeg = null;
+    [mRider, mStore, mBuyer, lnMain, lnLeg, mAcc].forEach(l => { if (l && map) map.removeLayer(l); });
+    mRider = mStore = mBuyer = lnMain = lnLeg = mAcc = null;
   }
+  /* GPS is detected automatically. It runs all the time the rider screen is open:
+     low power when idle, high accuracy while a delivery is active. */
   function startWatch() {
-    if (watchId !== null || !navigator.geolocation) { if (!navigator.geolocation) gpsMsg = 'Your phone does not support location.'; return; }
+    if (!navigator.geolocation) { gpsMsg = 'Your phone does not support location.'; return paintIdle(false); }
+    const wantHigh = !!active;
+    if (watchId !== null && wantHigh === hiAcc) return;
+    if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+    hiAcc = wantHigh;
     watchId = navigator.geolocation.watchPosition(p => {
-      pos = [p.coords.latitude, p.coords.longitude]; gpsMsg = ''; draw(false);
-    }, e => { gpsMsg = e.code === 1 ? 'Allow location so we can show your route.' : 'Looking for your location…'; draw(false); },
-    { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 });
+      pos = [p.coords.latitude, p.coords.longitude]; acc = p.coords.accuracy; fixAt = Date.now(); gpsMsg = '';
+      if (active) draw(false); else paintIdle(!centered);
+    }, e => {
+      gpsMsg = e.code === 1 ? 'Location is blocked. Allow location for BuyEasy in your phone settings, then reopen the app.' : 'Looking for your location…';
+      if (active) draw(false); else paintIdle(false);
+    }, { enableHighAccuracy: hiAcc, maximumAge: hiAcc ? 5000 : 30000, timeout: 20000 });
   }
   function stopWatch() { if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; } pos = null; }
+
+  /* map with no delivery: show where the rider is right now */
+  function paintIdle(center) {
+    const s = document.getElementById('navStatus'), d = document.getElementById('navDetail');
+    if (s) s.textContent = ok(pos) ? '📍 You are here' : '📍 Finding your location…';
+    if (d) d.textContent = ok(pos) ? (acc ? `Accurate to about ${Math.round(acc)} m` : 'Location found') : gpsMsg;
+    const empty = document.getElementById('trackEmpty');
+    if (empty && !active) empty.innerHTML = ok(pos) ? 'Accept a job to see your route here: you → store → customer.' : esc(gpsMsg || 'Looking for your location…');
+    if (!map || !window.L || active) return;
+    clearLayers();
+    if (ok(pos)) {
+      mAcc = L.circle(pos, { radius: Math.max(15, acc || 30), color: '#22c55e', weight: 1, fillColor: '#22c55e', fillOpacity: 0.12 }).addTo(map);
+      mRider = L.marker(pos, { icon: dot('#22c55e') }).addTo(map).bindPopup('You are here');
+      if (center) { map.setView(pos, 16); centered = true; }
+    }
+  }
 
   function setActive(order) {
     active = order || null;
     const card = document.getElementById('trackCard'), empty = document.getElementById('trackEmpty');
-    if (!active) { stopWatch(); clearLayers(); if (card) card.classList.add('hidden'); if (empty) empty.classList.remove('hidden');
-      const s = document.getElementById('navStatus'); if (s) s.textContent = '📍 No active delivery'; return; }
+    startWatch();                                           // switches accuracy up or down
+    if (!active) { clearLayers(); if (card) card.classList.add('hidden'); if (empty) empty.classList.remove('hidden'); paintIdle(!centered); return; }
     if (empty) empty.classList.add('hidden');
-    startWatch(); draw(true);
+    draw(true);
   }
 
   function draw(fit) {
@@ -84,7 +109,9 @@ window.RiderTracking = (function () {
 
   return {
     init, setActive,
-    refresh() { init(); if (map) map.invalidateSize(); if (active) draw(true); },
-    center() { if (map && ok(pos)) map.setView(pos, 16); }
+    autoStart() { init(); startWatch(); paintIdle(true); },
+    getPos() { return ok(pos) ? { lat: pos[0], lng: pos[1], acc, at: fixAt } : null; },
+    refresh() { init(); if (map) map.invalidateSize(); if (active) draw(true); else paintIdle(true); },
+    center() { if (map && ok(pos)) map.setView(pos, 16); else startWatch(); }
   };
 })();

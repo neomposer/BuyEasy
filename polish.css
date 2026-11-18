@@ -146,3 +146,4 @@ div:has(> .order-tab)::-webkit-scrollbar{display:none}
 }
 .sr-state{text-transform:none!important;letter-spacing:.1px!important;font-size:11px!important;white-space:nowrap}
 .sp-h p b{font-size:inherit!important;font-weight:900}
+.sp-card .sp-h[data-toggle]:hover b{color:#f59e0b}.sp-body{animation:spOpen .18s ease-out}@keyframes spOpen{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}

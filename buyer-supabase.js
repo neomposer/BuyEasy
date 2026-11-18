@@ -113,7 +113,7 @@
       drawShop(); renderFeatured(); renderCart();
     } catch (e) { console.warn('Trust refresh', e.message || e); }
   }
-  setInterval(() => { if (!document.hidden) refreshTrust(); }, 60000);
+  BuyEasyPoll.every(refreshTrust, { fast: 60000, slow: 120000, relaxed: 120000 });
   window.refreshTrust = refreshTrust;
 
   function renderFeatured() {
@@ -159,7 +159,7 @@
     if (typeof globalProducts !== 'undefined') globalProducts = rows;
     if ($('allProductsTitle')) $('allProductsTitle').textContent = `🛒 Products • ${rows.length}`;
     if ($('shopSub')) $('shopSub').textContent = `${rows.length} results${buyerLatLng ? ' • Stores near you first' : ' • Save GPS to see nearest'}`;
-    if (!rows.length) { list.innerHTML = (typeof buyerLatLng!=='undefined'&&buyerLatLng) ? beEmpty('🏪','No stores near you yet','No products within 15 km of you right now. New stores are joining, check back soon.') : beEmpty('📍','Set your delivery location','We only show stores within 15 km of you.','Set my location',"openTab('settings',document.getElementById('bnav-settings'))"); return; }
+    if (!rows.length) { list.innerHTML = (typeof buyerLatLng!=='undefined'&&buyerLatLng) ? beEmpty('🏪','No stores near you yet','No products within 15 km of you right now. New stores are joining, check back soon.') : beEmpty('📍','Turn on your location','We find stores within 15 km of you automatically. Please allow location for BuyEasy.','Allow location',"BuyerLocation.refresh(15000,true)"); return; }
     list.innerHTML = rows.map((p, index) => {
       const media = p.media.length ? p.media : (p.img ? [{type:'image',src:p.img}] : []);
       const first = media[0]?.src || p.img;
@@ -221,6 +221,7 @@
       const user=await auth();
       const profile=await loadProfile();
       const rows=cartRead(); if(!rows.length) throw new Error('Your cart is empty.');
+      try { if (window.BuyerLocation) await BuyerLocation.refresh(5000, false); } catch (e) {}
       const { data: ownedStores, error: ownedError } = await db.from('stores').select('id').eq('owner_id', user.id);
       if (ownedError) throw ownedError;
       const ownedIds = new Set((ownedStores || []).map(store => store.id));
@@ -242,7 +243,8 @@
       if(delRows.length && (!address || !Number.isFinite(lat) || !Number.isFinite(lng))) goSettings('Add your delivery address and map pin in Settings before ordering.');
       if(pickRows.length){
         const names=[...new Set(pickRows.map(r=>state.products.find(p=>p.id===r.product_id)?.storeName))].join(', ');
-        if(!confirm(`🚶 No riders are online for ${names}.\n\nYou will need to collect ${pickRows.length>1?'these items':'this order'} yourself from the store. No delivery fee is charged.\n\nDo you want to continue?`)) return;
+        const goOn = await BuyEasyUI.confirm(`You will need to collect ${pickRows.length>1?'these items':'this order'} yourself from the store. No delivery fee is charged.`, { title: `No riders online for ${names}`, okLabel: 'Continue, I will collect it', cancelLabel: 'Back to cart', icon: '🚶' });
+        if(!goOn) return;
       }
       if(address && Number.isFinite(lat) && Number.isFinite(lng)){
         const { error: profileError }=await db.from('profiles').update({full_name:name,phone,delivery_address:address,buyer_latitude:lat,buyer_longitude:lng}).eq('id',user.id);
