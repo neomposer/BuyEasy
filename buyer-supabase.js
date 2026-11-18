@@ -250,7 +250,8 @@
         const { error: profileError }=await db.from('profiles').update({full_name:name,phone,delivery_address:address,buyer_latitude:lat,buyer_longitude:lng}).eq('id',user.id);
         if(profileError) throw profileError;
       }
-      const method=(typeof selectedPay!=='undefined' ? selectedPay : 'wallet');
+      const rawPay=(typeof selectedPay!=='undefined' ? selectedPay : 'wallet');
+      const method=(rawPay==='cod' || rawPay==='cash_on_delivery') ? 'cash' : rawPay;   // Cash on Delivery is stored as 'cod' by the button
       if(method==='card') throw new Error('Card payments are not connected yet. Choose Wallet or Cash.');
       const call=(items,fulfil)=>db.rpc('buyer_checkout',{p_items:items,p_customer_name:name,p_customer_phone:phone,p_delivery_address:address||'',p_buyer_latitude:Number.isFinite(lat)?lat:null,p_buyer_longitude:Number.isFinite(lng)?lng:null,p_payment_method:method,p_fulfillment:fulfil});
       if(delRows.length){ const r=await call(delRows,'delivery'); if(r.error) throw r.error; cartWrite(pickRows); }

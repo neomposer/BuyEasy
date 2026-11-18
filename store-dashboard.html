@@ -119,7 +119,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
  </div>
 
  <div id="stock" class="section">
-  <div style="padding:10px 4px 6px"><h2 style="margin:0;font-size:20px">🗄️ Stock</h2><p style="margin:4px 0;color:var(--muted);font-size:11px">Products and media are stored in Supabase</p></div>
+  <div style="padding:10px 4px 6px"><h2 style="margin:0;font-size:20px">🗄️ Stock</h2><p style="margin:4px 0;color:var(--muted);font-size:11px">Add and manage your products</p></div>
   <div class="mini-card"><div class="mini-head" onclick="toggleMini('addProdBody')">Add Product <span>⌄</span></div><div id="addProdBody" class="mini-body">
    <label class="bh-label">Product Media (max 5, video ≤30 seconds). Files are shrunk automatically.</label><input id="p_media" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" multiple class="bh-field" onchange="handleMediaSelect(event)">
    <div id="mediaPreview" class="media-grid"></div>
@@ -133,7 +133,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
  </div>
 
  <div id="money" class="section">
-  <div class="mini-card"><div class="mini-head" onclick="toggleMini('walletBody')">Wallet <span>⌄</span></div><div id="walletBody" class="mini-body open"><div style="font-size:11px;color:var(--muted);font-weight:800;text-transform:uppercase">Available Balance</div><div id="wallet" class="wallet-main">R0.00</div><div class="notice">Wallet and earnings are read directly from Supabase. Withdrawal requests are disabled until a secure reservation and approval workflow is installed. Do not use the old LocalStorage withdrawal function.</div><button class="btn-white" disabled>Request Withdrawal (secure workflow pending)</button></div></div>
+  <div class="mini-card"><div class="mini-head" onclick="toggleMini('walletBody')">Wallet <span>⌄</span></div><div id="walletBody" class="mini-body open"><div style="font-size:11px;color:var(--muted);font-weight:800;text-transform:uppercase">Available Balance</div><div id="wallet" class="wallet-main">R0.00</div><button class="btn-white" disabled>Request Withdrawal (secure workflow pending)</button></div></div>
   <div class="mini-card"><div class="mini-head" onclick="toggleMini('historyBody')">Transaction History <span>⌄</span></div><div id="historyBody" class="mini-body open"><div id="earnHist"></div></div></div>
  </div>
 
@@ -143,7 +143,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
  </div>
 
  <div id="settings" class="section">
-  <div class="mini-card"><div class="mini-head">🔔 Alerts</div><div class="mini-body open"><p class="status">New orders and rider requests ring until you attend to them. Allow notifications and tap the screen once to turn sound on.</p><button onclick="BuyEasyAlerts.test()" class="btn-green">Test alert sound</button></div></div>
+  <div class="mini-card"><div class="mini-head" onclick="toggleMini('alertsBody')">🔔 Alerts <span>⌄</span></div><div id="alertsBody" class="mini-body"><p class="status">New orders and rider requests ring until you attend to them. Allow notifications and tap the screen once to turn sound on.</p><button onclick="BuyEasyAlerts.test()" class="btn-green">Test alert sound</button></div></div>
   <div class="mini-card"><div class="mini-head" onclick="toggleMini('profileBody')">Store Profile <span>⌄</span></div><div id="profileBody" class="mini-body open">
    <label class="bh-label">Store Logo</label><input id="s_pic" type="file" accept="image/jpeg,image/png,image/webp" class="bh-field" onchange="previewStorePic(event)"><img id="s_pic_preview" class="preview">
    <label class="bh-label">Owner Profile Picture</label><input id="storeProfileAvatarInput" data-profile-avatar data-profile-preview="storeProfileAvatarPreview" type="file" accept="image/jpeg,image/png,image/webp" class="bh-field"><img id="storeProfileAvatarPreview" class="preview">
@@ -157,7 +157,6 @@ button:disabled{opacity:.45;cursor:not-allowed}
    <div id="locStatus" class="status"></div>
    <button onclick="saveProfile()" class="btn-white">Save Store Profile</button>
   </div></div>
-  <div class="notice">Payout account details are not collected here. Store bank details should be handled by a dedicated, protected payout-account workflow, not copied into browser storage.</div>
  </div>
 </div>
 

@@ -1,5 +1,5 @@
 // BuyEasy service worker. Bump CACHE_VERSION on every deploy so phones never keep old code.
-const CACHE_VERSION = 'buyeasy-v11-2026-11-17';
+const CACHE_VERSION = 'buyeasy-v12-2026-11-18';
 // Works at the top of a site (Netlify) AND inside a folder (GitHub Pages): all paths are relative to this file.
 const BASE = new URL('./', self.location).href;
 const at = p => new URL(p, BASE).href;

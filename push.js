@@ -11,7 +11,7 @@
   const isIOS = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
   const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
-  let role = 'buyer', card = null, banner = null, state = 'unknown';
+  let role = 'buyer', card = null, banner = null, state = 'unknown', cardOpen = false;
 
   const u8 = b64 => { const p = '='.repeat((4 - b64.length % 4) % 4); const r = atob((b64 + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from([...r].map(c => c.charCodeAt(0))); };
   const reg = () => navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(() => navigator.serviceWorker.ready);
@@ -74,13 +74,19 @@
     const b = body();
     return `<div class="bp-card ${b.cls}"><div class="bp-h"><div class="bp-i">${b.icon}</div><div><b>${b.t}</b><span>${b.s}</span></div></div>${b.steps ? `<ol class="bp-steps">${b.steps.map(x => `<li>${x}</li>`).join('')}</ol>` : ''}${b.btns ? `<div class="bp-row">${b.btns}</div>` : ''}</div>`;
   }
+  function cardHtml() {
+    const b = body();
+    const sum = { on: 'On', denied: 'Blocked', 'ios-install': 'Setup needed', unsupported: 'Not supported' }[state] || 'Off';
+    return `<div class="bp-card ${b.cls}"><div class="bp-h" data-bp="toggle" role="button" tabindex="0" style="cursor:pointer"><div class="bp-i">${b.icon}</div><div style="flex:1"><b>Phone alerts</b><span>${sum} • tap to ${cardOpen ? 'close' : 'open'}</span></div><span style="font-size:16px;color:var(--muted)">${cardOpen ? '▲' : '▼'}</span></div>
+      ${cardOpen ? `<div style="margin-top:10px;font-size:12.5px;color:var(--muted);line-height:1.5"><b style="color:var(--text)">${b.t}.</b> ${b.s}</div>${b.steps ? `<ol class="bp-steps">${b.steps.map(x => `<li>${x}</li>`).join('')}</ol>` : ''}${b.btns ? `<div class="bp-row">${b.btns}</div>` : ''}` : ''}</div>`;
+  }
   function handle(e) {
     const b = e.target.closest('[data-bp]'); if (!b) return;
-    ({ on: enable, off: disable, test: test })[b.dataset.bp]();
+    ({ on: enable, off: disable, test: test, toggle: () => { cardOpen = !cardOpen; draw(); } })[b.dataset.bp]();
   }
   function draw() {
     css();
-    if (card) card.innerHTML = html();
+    if (card) card.innerHTML = cardHtml();
     if (banner) { const dismissed = Number(localStorage.getItem('be_push_dismiss') || 0) > Date.now(); banner.innerHTML = (state === 'default' || state === 'ios-install') && !dismissed ? `${html().replace('<div class="bp-row">', '<div class="bp-row"><button data-bp="later">Not now</button>')}` : ''; }
   }
   document.addEventListener('click', e => { if (e.target.closest && e.target.closest('[data-bp="later"]')) { localStorage.setItem('be_push_dismiss', String(Date.now() + 86400000)); draw(); return; } handle(e); });
