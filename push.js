@@ -14,7 +14,7 @@
   let role = 'buyer', card = null, banner = null, state = 'unknown';
 
   const u8 = b64 => { const p = '='.repeat((4 - b64.length % 4) % 4); const r = atob((b64 + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from([...r].map(c => c.charCodeAt(0))); };
-  const reg = () => navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(() => navigator.serviceWorker.ready);
+  const reg = () => navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(() => navigator.serviceWorker.ready);
 
   async function save(sub) {
     const j = sub.toJSON();

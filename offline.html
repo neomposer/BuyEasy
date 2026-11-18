@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>BuyEasy — You're offline</title>
-<meta name="theme-color" content="#22c55e"><link rel="icon" href="/icon-192.png">
+<meta name="theme-color" content="#22c55e"><link rel="icon" href="icon-192.png">
 <style>
 *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:28px;background:linear-gradient(160deg,#052e16 0%,#0b0b0b 55%);color:#fff;font-family:Inter,system-ui,sans-serif;text-align:center}
 .c{max-width:360px;width:100%}.ring{width:116px;height:116px;margin:0 auto 22px;border-radius:50%;display:grid;place-items:center;background:rgba(34,197,94,.12);border:2px solid rgba(34,197,94,.45);animation:p 2.2s infinite}
@@ -17,7 +17,7 @@ button{width:100%;padding:14px;border:0;border-radius:14px;background:#22c55e;co
 <ul><li>Turn on mobile data or Wi-Fi</li><li>Move to a spot with better signal</li><li>We'll reconnect automatically</li></ul>
 <button id="r" type="button">Try again</button><div class="b">BuyEasy</div></div>
 <script>
-document.getElementById('r').onclick=function(){location.href='/index.html';};
-window.addEventListener('online',function(){location.href='/index.html';});
-setInterval(function(){if(navigator.onLine){fetch('/manifest.json?p='+Date.now(),{cache:'no-store'}).then(function(){location.href='/index.html';}).catch(function(){});}},6000);
+document.getElementById('r').onclick=function(){location.href='index.html';};
+window.addEventListener('online',function(){location.href='index.html';});
+setInterval(function(){if(navigator.onLine){fetch('manifest.json?p='+Date.now(),{cache:'no-store'}).then(function(){location.href='index.html';}).catch(function(){});}},6000);
 </script></body></html>

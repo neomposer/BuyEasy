@@ -2,8 +2,8 @@
   "name": "BuyEasy",
   "short_name": "BuyEasy",
   "description": "Shop from local stores. Delivered by riders.",
-  "start_url": "/index.html",
-  "scope": "/",
+  "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#22c55e",
   "theme_color": "#22c55e",
@@ -27,5 +27,6 @@
       "type": "image/png",
       "purpose": "maskable"
     }
-  ]
+  ],
+  "id": "./index.html"
 }

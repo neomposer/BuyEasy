@@ -1,6 +1,7 @@
 /* BUYEasy - professional "no internet" screen shown over any page when the phone is offline. */
 (function () {
   'use strict';
+  const SELF_BASE = (document.currentScript && document.currentScript.src) ? new URL('./', document.currentScript.src).href : location.href;
   let box = null, checking = false;
   function build() {
     if (box) return box;
@@ -30,7 +31,7 @@
   async function reachable() {
     if (!navigator.onLine) return false;
     try { const c = new AbortController(); const t = setTimeout(() => c.abort(), 5000);
-      await fetch(location.origin + '/manifest.json?ping=' + Date.now(), { cache: 'no-store', signal: c.signal }); clearTimeout(t); return true; }
+      await fetch(SELF_BASE + 'manifest.json?ping=' + Date.now(), { cache: 'no-store', signal: c.signal }); clearTimeout(t); return true; }
     catch (e) { return false; }
   }
   async function verify() {

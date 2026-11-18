@@ -228,8 +228,7 @@ async function forgot() {
             await window.supabaseClient.auth.resetPasswordForEmail(
                 email,
                 {
-                    redirectTo: window.location.origin +
-                        '/admin/reset-password.html'
+                    redirectTo: new URL('reset-password.html', window.location.href).href
                 }
             );
 
