@@ -77,5 +77,5 @@
     finally { busy = false; }
   }
   window.BuyEasyRatings = { check: () => check() };
-  document.addEventListener('DOMContentLoaded', () => { setTimeout(check, 5000); });
+  document.addEventListener('DOMContentLoaded', () => { setTimeout(check, 9000); });
 })();

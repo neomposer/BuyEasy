@@ -43,12 +43,12 @@
 
 
   /* ---------- store profile header (logo, name, verified, rating) ---------- */
-  function storeHead(o, right) {
+  function storeHead(o, right, toggle) {
     const st = o.stores || {};
     const info = (window.BuyEasyBadge && BuyEasyBadge.store(o.store_id)) || {};
     const logo = st.logo_url ? `<span class="be-logo"><img src="${esc(st.logo_url)}" alt=""></span>` : `<span class="be-logo">${esc((st.store_name || 'S').trim().charAt(0).toUpperCase())}</span>`;
     const tel = cleanPhone(st.phone);
-    return `<div class="rj-head">${logo}<div class="rj-store"><b>${esc(st.store_name || 'Store')}${info.is_verified ? BuyEasyBadge.icon(16) : ''}</b>
+    return `<div class="rj-head"${toggle ? ' data-oc-toggle' : ''}>${logo}<div class="rj-store"><b>${esc(st.store_name || 'Store')}${info.is_verified ? BuyEasyBadge.icon(16) : ''}</b>
       <div class="rj-sub">${window.BuyEasyBadge ? BuyEasyBadge.stars(info) : ''}${tel.length > 8 ? ` <a href="tel:+${tel}">📞 Call store</a>` : ''}</div></div>${right ? `<div class="rj-price">${right}</div>` : ''}</div>`;
   }
   setInterval(() => {
@@ -177,17 +177,20 @@
     el.innerHTML = rows.map(o => {
       const items = (o.order_items || []).map(i => `${esc(i.product_name)} × ${Number(i.quantity) || 0}`).join(', ');
       const st = o.stores || {};
-      return `<div class="job-card rj">${storeHead(o, `${money(o.rider_net)}<small>you earn</small>`)}
+      return `<div class="job-card rj oc${beCard.cls(o.id)}" data-oc="${esc(o.id)}">${storeHead(o, `${money(o.rider_net)}<small>you earn</small>`, true)}
         <div class="rj-timer" data-offered="${esc(o.dispatch_offered_at || '')}" data-pool="${Number(o.dispatch_pool || 0)}"></div>
-        <div class="rj-route">
-          <div class="rj-stop"><span class="rj-dot a"></span><div><small>Pick up</small><b>${esc(st.address || 'Store address on map')}</b></div></div>
-          <div class="rj-line"></div>
-          <div class="rj-stop"><span class="rj-dot b"></span><div><small>Deliver to</small><b>${esc(o.delivery_address)}</b><div class="rj-sub">${esc(o.customer_name)}</div></div></div>
+        <div class="oc-sum" data-oc-toggle><span>📍 ${esc(o.delivery_address)}${o.payment_method === 'cash' ? ' • 💵 Cash' : ''}</span><span class="oc-chev">▾</span></div>
+        <div class="oc-body">
+          <div class="rj-route">
+            <div class="rj-stop"><span class="rj-dot a"></span><div><small>Pick up</small><b>${esc(st.address || 'Store address on map')}</b></div></div>
+            <div class="rj-line"></div>
+            <div class="rj-stop"><span class="rj-dot b"></span><div><small>Deliver to</small><b>${esc(o.delivery_address)}</b><div class="rj-sub">${esc(o.customer_name)}</div></div></div>
+          </div>
+          ${contactIcons(o.customer_phone, o.customer_name, o.order_number)}
+          <div class="rj-items">🛍️ ${items}</div>
+          ${o.payment_method === 'cash' ? `<div class="rj-cash">💵 Cash on delivery. Collect ${money(o.total)} from the buyer.</div>` : ''}
+          <div class="rj-meta">Order ${esc(o.order_number)} • Order total ${money(o.total)}<br><small>The final fee is confirmed when you accept.</small></div>
         </div>
-        ${contactIcons(o.customer_phone, o.customer_name, o.order_number)}
-        <div class="rj-items">🛍️ ${items}</div>
-        ${o.payment_method === 'cash' ? `<div class="rj-cash">💵 Cash on delivery. Collect ${money(o.total)} from the buyer.</div>` : ''}
-        <div class="rj-meta">Order ${esc(o.order_number)} • Order total ${money(o.total)}<br><small>The final fee is confirmed when you accept.</small></div>
         <button onclick="acceptJob('${esc(o.id)}')" class="btn-green">Accept job</button></div>`;
     }).join('');
   }
@@ -230,15 +233,17 @@
     el.innerHTML = active.length ? active.map(o => {
       const toStore = o.status === 'assigned';
       const cash = o.payment_method === 'cash' ? `<div style="margin:8px 0;padding:8px 10px;border-radius:10px;background:rgba(245,158,11,.15);color:#f59e0b;font-weight:800">💵 Collect ${money(o.total)} cash from the customer</div>` : '';
-      return `<div class="job-card rj">${storeHead(o, `${money(o.rider_net)}<small>you earn</small>`)}
-        <div class="job-body" style="padding-top:6px">${stepBar(o.status)}
-          <div style="font-weight:900">${toStore ? '👉 Next: go to the store and pick up the order' : '👉 Next: deliver to the customer'}</div>
-          <div style="margin-top:6px">Customer: <b>${esc(o.customer_name)}</b></div>${contactIcons(o.customer_phone, o.customer_name, o.order_number)}
-          <div>📍 ${esc(o.delivery_address)}</div><div>🛍️ ${(o.order_items || []).map(i => `${esc(i.product_name)} × ${Number(i.quantity) || 0}`).join(', ')}</div>${cash}
-          <div class="status">You earn ${money(o.rider_net)}</div>
+      const primary = toStore ? `<button class="btn-green" onclick="markPickedUp('${esc(o.id)}')">📦 Picked up</button>` : `<button class="btn-green" onclick="completeDel('${esc(o.id)}')">✅ Delivered</button>`;
+      return `<div class="job-card rj oc${beCard.cls(o.id)}" data-oc="${esc(o.id)}">${storeHead(o, `${money(o.rider_net)}<small>you earn</small>`, true)}
+        <div class="rj-sumblock" style="margin-top:10px">${stepBar(o.status)}<div style="font-weight:900;font-size:13.5px">${toStore ? '👉 Next: go to the store and pick up the order' : '👉 Next: deliver to the customer'}</div></div>
+        <div class="oc-sum" data-oc-toggle><span>Customer: <b>${esc(o.customer_name)}</b> • ${money(o.total)}${o.payment_method === 'cash' ? ' • 💵 Cash' : ''}</span><span class="oc-chev">▾</span></div>
+        <div class="oc-body">
+          ${contactIcons(o.customer_phone, o.customer_name, o.order_number)}
+          <div>📍 ${esc(o.delivery_address)}</div><div style="margin-top:6px">🛍️ ${(o.order_items || []).map(i => `${esc(i.product_name)} × ${Number(i.quantity) || 0}`).join(', ')}</div>${cash}
+          <div class="status">Order ${esc(o.order_number)} • You earn ${money(o.rider_net)}</div>
           <button class="btn-white" onclick="trackOrder('${esc(o.id)}')">🗺️ Track route</button>
-          ${toStore ? `<button class="btn-green" onclick="markPickedUp('${esc(o.id)}')">📦 Picked up</button>` : `<button class="btn-green" onclick="completeDel('${esc(o.id)}')">✅ Delivered</button>`}
-        </div></div>`;
+        </div>
+        ${primary}</div>`;
     }).join('') : beEmpty('📦','No active deliveries','Accept a job from the Jobs tab and it will appear here.');
   }
   function trackingFeed() {

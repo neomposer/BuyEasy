@@ -1,5 +1,5 @@
 // BuyEasy service worker. Bump CACHE_VERSION on every deploy so phones never keep old code.
-const CACHE_VERSION = 'buyeasy-v12-2026-11-18';
+const CACHE_VERSION = 'buyeasy-v14-2026-11-20';
 // Works at the top of a site (Netlify) AND inside a folder (GitHub Pages): all paths are relative to this file.
 const BASE = new URL('./', self.location).href;
 const at = p => new URL(p, BASE).href;
@@ -16,13 +16,18 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;           // Supabase, maps, CDNs: never cached here
-  e.respondWith(
-    fetch(req).then(res => {
+  e.respondWith((async () => {
+    const cached = await caches.match(req);
+    const net = fetch(req).then(res => {
       if (res && res.ok && !url.href.startsWith(at('admin/'))) { const copy = res.clone(); caches.open(CACHE_VERSION).then(c => c.put(req, copy)); }
       return res;
-    }).catch(() => caches.match(req).then(hit => hit || (req.mode === 'navigate' ? caches.match(at('offline.html')) : undefined)))
-  );
+    });
+    if (!cached) return net.catch(() => (req.mode === 'navigate' ? caches.match(at('offline.html')) : Response.error()));
+    // we already have a copy: wait up to 3 seconds for fresh code, otherwise show the copy straight away
+    return Promise.race([net, new Promise(r => setTimeout(() => r(cached), 3000))]).catch(() => cached);
+  })());
 });
+
 // ---- push notifications (work even when the app is closed) ----
 self.addEventListener('push', e => {
   let d = {};

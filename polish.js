@@ -19,3 +19,19 @@
     });
   });
 })();
+
+/* Collapsible order cards (buyer, store, rider): every order starts minimized and opens on tap.
+   The open/closed state is remembered while the list refreshes. */
+(function () {
+  'use strict';
+  const open = new Set();
+  try { JSON.parse(sessionStorage.getItem('be_oc') || '[]').forEach(x => open.add(String(x))); } catch (e) {}
+  window.beCard = { isOpen: id => open.has(String(id)), cls: id => open.has(String(id)) ? ' open' : '' };
+  document.addEventListener('click', e => {
+    const t = e.target.closest && e.target.closest('[data-oc-toggle]'); if (!t) return;
+    if (e.target.closest('a,button,input,select,textarea,[data-oc-stop]')) return;
+    const card = t.closest('.oc'); if (!card) return;
+    const id = String(card.dataset.oc || ''), isOpen = card.classList.toggle('open');
+    if (id) { if (isOpen) open.add(id); else open.delete(id); try { sessionStorage.setItem('be_oc', JSON.stringify([...open].slice(-80))); } catch (err) {} }
+  });
+})();

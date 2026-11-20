@@ -61,6 +61,6 @@
     const right = bh.lastElementChild; (right || bh).insertBefore(bell, (right || bh).firstChild);
   }
   window.BuyEasyAnnouncements = {
-    init(r) { role = r || role; document.addEventListener('DOMContentLoaded', () => { setTimeout(() => { mountBell(); load(); }, 800); BuyEasyPoll.every(load, { fast: 120000, slow: 300000, relaxed: 300000 }); }); }
+    init(r) { role = r || role; document.addEventListener('DOMContentLoaded', () => { setTimeout(() => { mountBell(); load(); }, 2500); BuyEasyPoll.every(load, { fast: 120000, slow: 300000, relaxed: 300000 }); }); }
   };
 })();

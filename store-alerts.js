@@ -47,7 +47,7 @@
   }
 
   document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => { poll(); db && db.rpc('cancel_stale_orders').then(() => {}, () => {}); }, 2500);
+    setTimeout(() => { poll(); db && db.rpc('cancel_stale_orders').then(() => {}, () => {}); }, 4000);
     BuyEasyPoll.every(poll, { fast: 15000, slow: 40000, relaxed: 45000 });
     BuyEasyPoll.every(() => { if (db) db.rpc('cancel_stale_orders').then(() => {}, () => {}); }, { fast: 300000, slow: 300000, relaxed: 300000 });
     BuyEasyPoll.realtime(['orders'], poll);

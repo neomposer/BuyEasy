@@ -147,3 +147,17 @@ div:has(> .order-tab)::-webkit-scrollbar{display:none}
 .sr-state{text-transform:none!important;letter-spacing:.1px!important;font-size:11px!important;white-space:nowrap}
 .sp-h p b{font-size:inherit!important;font-weight:900}
 .sp-card .sp-h[data-toggle]:hover b{color:#f59e0b}.sp-body{animation:spOpen .18s ease-out}@keyframes spOpen{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+
+/* ---------- collapsible order cards ---------- */
+.oc .oc-body{display:none}
+.oc.open .oc-body{display:block;animation:ocIn .16s ease-out}
+@keyframes ocIn{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+.oc-head,[data-oc-toggle]{cursor:pointer;-webkit-user-select:none;user-select:none}
+.oc-sum{display:flex;align-items:center;gap:8px;justify-content:space-between;margin-top:8px;font-size:12.5px;color:var(--muted)}
+.oc-sum>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.oc-sum b{color:var(--text);font-weight:900}
+.oc-chev{flex:0 0 auto;display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--card3);color:var(--muted);font-size:13px;transition:transform .18s}
+.oc.open .oc-chev{transform:rotate(180deg)}
+.oc-quick{flex:0 0 auto;padding:7px 14px;border:0;border-radius:10px;background:var(--green);color:#052e16;font-weight:900;font-size:12px;cursor:pointer;min-height:34px}
+.rj.oc>.oc-sum{margin-top:10px}.rj.oc>.oc-body{margin-top:2px}
+.store-order-card.oc{padding-bottom:12px}

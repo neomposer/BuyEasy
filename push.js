@@ -99,5 +99,5 @@
     if (bh && !document.getElementById('bePushBanner') && (role === 'store' || role === 'rider')) { banner = document.createElement('div'); banner.id = 'bePushBanner'; bh.parentNode.insertBefore(banner, bh.nextSibling); }
     draw();
   }
-  window.PushAlerts = { init(r) { role = r || role; document.addEventListener('DOMContentLoaded', () => setTimeout(mount, 1200)); } };
+  window.PushAlerts = { init(r) { role = r || role; document.addEventListener('DOMContentLoaded', () => setTimeout(mount, 4000)); } };
 })();

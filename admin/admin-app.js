@@ -73,6 +73,13 @@
         const note = make ? (await BuyEasyUI.prompt('Why are they verified? (optional)', '', { title: 'Add a note', placeholder: 'e.g. 4.9 rating, 100 deliveries' })) || '' : '';
         await rpc('admin_set_verified', { p_user_id: d.id, p_verified: make, p_note: note }); toast(make ? 'Verified badge given' : 'Badge removed');
       }
+      else if (kind === 'grant-credit' || kind === 'credit-quick') {
+        const sid = $('crStore').value, dd = d.h ? Number(d.h) : Number($('crDays').value);
+        if (!sid || !dd) return BuyEasyUI.alert('Choose a store and enter the number of hours.', { dialog: true, title: 'Missing details' });
+        const ok = await BuyEasyUI.confirm(`${dd > 0 ? 'Give' : 'Take back'} ${Math.abs(dd)} free promotion hour(s) ${dd > 0 ? 'to' : 'from'} this store?`, { title: 'Free promotion days', okLabel: dd > 0 ? 'Give days' : 'Take back', icon: '🎁' });
+        if (!ok) return;
+        await rpc('admin_grant_promo_credit', { p_store_id: sid, p_hours: dd, p_note: $('crNote').value }); toast('Done');
+      }
       else if (kind === 'announce') {
         const t = $('annTitle').value.trim(), b = $('annBody').value.trim();
         if (t.length < 3 || b.length < 3) return alert('Add a title and a message.');
@@ -221,12 +228,20 @@
     },
 
     async promos(v) {
-      const rows = await rpc('admin_list_promotions');
-      const total = rows.reduce((n, p) => n + Number(p.amount), 0), live = rows.filter(p => p.state === 'active').length;
+      const [rows, stores, credits] = await Promise.all([rpc('admin_list_promotions'), rpc('admin_store_performance', { p_days: 0 }), rpc('admin_list_promo_credits').catch(() => [])]);
+      const paid = rows.filter(p => p.payment_method !== 'credit'), total = paid.reduce((n, p) => n + Number(p.amount), 0), live = rows.filter(p => p.state === 'active').length;
       const tone = s => s === 'active' ? 't-g' : s === 'queued' ? 't-b' : 't-n';
+      const opts = stores.slice().sort((x, y) => String(x.store_name).localeCompare(String(y.store_name))).map(st => `<option value="${esc(st.store_id)}">${esc(st.store_name)}</option>`).join('');
       v.innerHTML = `<h2>Store promotions</h2>
-      <div class="grid"><div class="kpi"><small>Promotion revenue</small><b>${money(total)}</b><i>R1 per hour</i></div><div class="kpi"><small>Live now</small><b>${num(live)}</b><i>stores featured</i></div><div class="kpi"><small>Total bought</small><b>${num(rows.length)}</b><i>promotions</i></div></div>
-      <div style="margin-top:12px">${rows.length ? rows.map(p => `<div class="item"><div class="h"><div><b>${esc(p.store_name)}</b> <span class="tag ${tone(p.state)}">${esc(p.state)}</span><div class="m">${esc(p.owner_email)} • ${num(p.hours)} hours<br>${when(p.starts_at)} to ${when(p.ends_at)}</div></div><b>${money(p.amount)}</b></div></div>`).join('') : '<div class="empty">No promotions bought yet.</div>'}</div>`;
+      <div class="grid"><div class="kpi"><small>Promotion income</small><b>${money(total)}</b><i>from paid promotions</i></div><div class="kpi"><small>Live now</small><b>${num(live)}</b><i>stores featured</i></div><div class="kpi"><small>Total bought</small><b>${num(rows.length)}</b><i>incl. ${num(rows.length - paid.length)} free</i></div></div>
+      <div class="card" style="margin-top:12px"><h3>🎁 Give free promotion hours</h3>
+        <div class="m" style="color:var(--muted);font-size:12.5px;margin-bottom:8px">The store sees the gift in Stock &gt; Promote your store and uses it themselves. Pick a store and the hours (24 = 1 day, 168 = 1 week, 720 = 1 month). Use a minus number to take credit back.</div>
+        <div class="row"><select id="crStore" style="flex:1;min-width:180px">${opts || '<option value="">No approved stores</option>'}</select><input id="crDays" type="number" placeholder="Hours" min="-2160" max="2160" style="width:100px"></div>
+        <input id="crNote" maxlength="200" placeholder="Reason (optional), e.g. Launch gift" style="width:100%;margin-bottom:8px">
+        <div class="acts"><button class="btn g" data-act="grant-credit">Give free hours</button><button class="btn" data-act="credit-quick" data-h="24">+24 h</button><button class="btn" data-act="credit-quick" data-h="168">+1 week</button><button class="btn" data-act="credit-quick" data-h="720">+1 month</button></div></div>
+      ${credits.length ? `<h3>Free credit balances</h3>${credits.map(c => `<div class="item"><div class="h"><div><b>${esc(c.store_name)}</b><div class="m">${esc(c.owner_email)} • updated ${when(c.updated_at)}</div></div><span class="tag t-g">${num(c.hours)} hour${c.hours === 1 ? '' : 's'} left (${(c.hours / 24).toFixed(1)} days)</span></div></div>`).join('')}` : ''}
+      <h3 style="margin-top:14px">All promotions</h3>
+      <div>${rows.length ? rows.map(p => `<div class="item"><div class="h"><div><b>${esc(p.store_name)}</b> <span class="tag ${tone(p.state)}">${esc(p.state)}</span>${p.payment_method === 'credit' ? ' <span class="tag t-a">Free credit</span>' : ''}<div class="m">${esc(p.owner_email)} • ${num(p.hours)} hour(s)<br>${when(p.starts_at)} to ${when(p.ends_at)}</div></div><b>${p.payment_method === 'credit' ? 'Free' : money(p.amount)}</b></div></div>`).join('') : '<div class="empty">No promotions bought yet.</div>'}</div>`;
     },
 
     async support(v) {

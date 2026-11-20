@@ -81,7 +81,7 @@
   window.applyBuyerRange = () => { if (!state.all) return; state.products = state.all.filter(inRange); if (typeof globalProducts !== 'undefined') globalProducts = state.products.slice(); ['renderShop', 'renderFavs', 'renderPopularProducts'].forEach(n => { if (typeof window[n] === 'function') window[n](); }); };
   async function loadCatalogue() {
     await auth();
-    const { data, error } = await db.from('buyer_catalogue').select('*').order('created_at', { ascending: false });
+    const { data, error } = await db.from('buyer_catalogue').select('product_id,store_id,store_name,store_phone,store_address,store_latitude,store_longitude,is_online,name,price,quantity,image_url,media,description,created_at').order('created_at', { ascending: false }).limit(400);
     if (error) throw error;
     state.all = (data || []).map(row => ({
       id: row.product_id, productId: row.product_id, storeId: row.store_id,
@@ -165,7 +165,7 @@
       const first = media[0]?.src || p.img;
       return `<div class="prod-card ${p.online ? '' : 'offline'}">${p.online ? '' : '<div class="offline-overlay"><span class="offline-text">OFFLINE</span></div>'}
         <button class="fav-btn ${isFavProduct(p.id)?'active':''}" onclick="event.stopPropagation();toggleFavProd('${esc(p.id)}','${esc(p.storeId)}')">${isFavProduct(p.id)?'❤️':'🤍'}</button>
-        <div style="position:relative;width:100%;height:130px;overflow:hidden;border-radius:12px;background:#222;cursor:pointer" onclick="openGallery('${esc(p.id)}')">${first?`<img src="${esc(first)}" style="width:100%;height:100%;object-fit:cover">`:'<div style="display:grid;place-items:center;height:100%">🛒</div>'}</div>
+        <div style="position:relative;width:100%;height:130px;overflow:hidden;border-radius:12px;background:#222;cursor:pointer" onclick="openGallery('${esc(p.id)}')">${first?`<img loading="lazy" decoding="async" src="${esc(first)}" style="width:100%;height:100%;object-fit:cover">`:'<div style="display:grid;place-items:center;height:100%">🛒</div>'}</div>
         <div class="prod-info"><div class="prod-name" onclick="openGallery('${esc(p.id)}')">${esc(p.name)}</div>
         <div class="prod-meta"><span class="dot ${p.online?'online':'offline'}"></span><span onclick="viewStore('${esc(p.storeId)}')">${esc(p.storeName)}</span>${window.BuyEasyBadge ? BuyEasyBadge.storeBadge(p.storeId, 14) : ''}${state.riders && state.riders[p.storeId] === 0 ? ' <span class="be-pickup">🚶 Pickup only</span>' : ''}${p.dist<9999?` • ${p.dist.toFixed(1)} km`:''}</div>
         <div class="prod-price">${money(p.price)}</div><div class="store-actions"><button onclick="addToCartByIndex(${index})" ${p.online?'':'disabled'} class="add-btn" style="flex:1">${p.online?'Add':'Off'}</button><button onclick="viewStore('${esc(p.storeId)}')" class="icon-btn">🏪</button><button onclick="openStoreLocation('${esc(p.storeId)}')" class="icon-btn">📍</button><button onclick="openGallery('${esc(p.id)}')" class="icon-btn">👁️</button></div></div></div>`;
@@ -216,54 +216,79 @@
     const rows=cartRead(); const item=rows.find(x=>x.product_id===id); if(!item) return;
     item.quantity += delta; cartWrite(rows.filter(x=>x.quantity>0)); renderCart(); updateStats();
   }
+  /* ---------- checkout: one tap = one order ---------- */
+  let checkingOut = false;
+  const uuid = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
+  // The same cart keeps the same request key until the order succeeds, so a double tap, a slow
+  // connection or an automatic retry can never create a second order.
+  function requestKeys(rows, method) {
+    const sig = JSON.stringify([rows.map(r => [r.product_id, r.quantity]).sort(), method]);
+    let k = {}; try { k = JSON.parse(sessionStorage.getItem('be_co') || '{}'); } catch (e) {}
+    if (k.sig !== sig) k = { sig, d: uuid(), p: uuid() };
+    try { sessionStorage.setItem('be_co', JSON.stringify(k)); } catch (e) {}
+    return k;
+  }
+  function checkoutBusy(on) {
+    document.querySelectorAll('[onclick*="checkout"]').forEach(btn => {
+      if (on) { btn.dataset.label = btn.textContent; btn.textContent = 'Placing your order…'; btn.disabled = true; btn.style.opacity = '.7'; }
+      else { btn.disabled = false; btn.style.opacity = ''; if (btn.dataset.label) btn.textContent = btn.dataset.label; }
+    });
+  }
   async function checkout() {
+    if (checkingOut) return;                       // second tap while the first is still running: ignore
+    checkingOut = true; checkoutBusy(true);
+    let wait = (window.BuyEasyUI && BuyEasyUI.progress) ? BuyEasyUI.progress('Placing your order…') : null;
     try {
-      const user=await auth();
-      const profile=await loadProfile();
-      const rows=cartRead(); if(!rows.length) throw new Error('Your cart is empty.');
-      try { if (window.BuyerLocation) await BuyerLocation.refresh(5000, false); } catch (e) {}
-      const { data: ownedStores, error: ownedError } = await db.from('stores').select('id').eq('owner_id', user.id);
-      if (ownedError) throw ownedError;
-      const ownedIds = new Set((ownedStores || []).map(store => store.id));
+      const user = await auth();
+      const profile = state.profile || await loadProfile();
+      const rows = cartRead(); if (!rows.length) throw new Error('Your cart is empty.');
       const storeOf = r => state.products.find(p => p.id === r.product_id)?.storeId;
-      if (rows.some(r => ownedIds.has(storeOf(r)))) throw new Error('You cannot buy products from your own store. Remove them from your cart before checkout.');
-      const name=$('b_name')?.value.trim() || profile.full_name;
-      const phone=$('b_phone')?.value.trim() || profile.phone;
-      const address=$('b_addr')?.value.trim() || profile.delivery_address;
-      const lat=Number($('b_lat')?.value || profile.buyer_latitude);
-      const lng=Number($('b_lng')?.value || profile.buyer_longitude);
-      const goSettings = msgText => { if(typeof window.openTab==='function') window.openTab('settings',document.getElementById('bnav-settings')); throw new Error(msgText); };
-      if(!name || !phone) goSettings('Add your name and phone number in Settings before ordering.');
+      if (window.BuyerLocation && !BuyerLocation.get()) { try { await BuyerLocation.refresh(3000, false); } catch (e) {} }   // only waits if we have no fix at all
+      const name = $('b_name')?.value.trim() || profile.full_name;
+      const phone = $('b_phone')?.value.trim() || profile.phone;
+      const address = $('b_addr')?.value.trim() || profile.delivery_address;
+      const lat = Number($('b_lat')?.value || profile.buyer_latitude);
+      const lng = Number($('b_lng')?.value || profile.buyer_longitude);
+      const goSettings = text => { if (typeof window.openTab === 'function') window.openTab('settings', document.getElementById('bnav-settings')); throw new Error(text); };
+      if (!name || !phone) goSettings('Add your name and phone number in Settings before ordering.');
 
       // stores with NO online rider can only be collected by the buyer
-      const ids=[...new Set(rows.map(storeOf).filter(Boolean))];
-      const av=await db.rpc('store_rider_availability',{p_store_ids:ids}); if(av.error) throw av.error;
-      const none=new Set((av.data||[]).filter(x=>Number(x.online_riders)===0).map(x=>x.store_id));
-      const pickRows=rows.filter(r=>none.has(storeOf(r))), delRows=rows.filter(r=>!none.has(storeOf(r)));
-      if(delRows.length && (!address || !Number.isFinite(lat) || !Number.isFinite(lng))) goSettings('Add your delivery address and map pin in Settings before ordering.');
-      if(pickRows.length){
-        const names=[...new Set(pickRows.map(r=>state.products.find(p=>p.id===r.product_id)?.storeName))].join(', ');
-        const goOn = await BuyEasyUI.confirm(`You will need to collect ${pickRows.length>1?'these items':'this order'} yourself from the store. No delivery fee is charged.`, { title: `No riders online for ${names}`, okLabel: 'Continue, I will collect it', cancelLabel: 'Back to cart', icon: '🚶' });
-        if(!goOn) return;
+      const ids = [...new Set(rows.map(storeOf).filter(Boolean))];
+      const av = await db.rpc('store_rider_availability', { p_store_ids: ids }); if (av.error) throw av.error;
+      const none = new Set((av.data || []).filter(x => Number(x.online_riders) === 0).map(x => x.store_id));
+      const pickRows = rows.filter(r => none.has(storeOf(r))), delRows = rows.filter(r => !none.has(storeOf(r)));
+      if (delRows.length && (!address || !Number.isFinite(lat) || !Number.isFinite(lng))) goSettings('Add your delivery address and map pin in Settings before ordering.');
+      if (pickRows.length) {
+        const names = [...new Set(pickRows.map(r => state.products.find(p => p.id === r.product_id)?.storeName))].join(', ');
+        if (wait) { wait.done(); wait = null; }          // close the spinner before asking
+        const ok = await BuyEasyUI.confirm(`No riders are online for ${names}. You will need to collect ${pickRows.length > 1 ? 'these items' : 'this order'} yourself from the store. No delivery fee is charged.`, { title: 'Collect it yourself?', okLabel: 'Yes, I will collect', icon: '🚶' });
+        if (!ok) return;
+        wait = BuyEasyUI.progress('Placing your order…');
       }
-      if(address && Number.isFinite(lat) && Number.isFinite(lng)){
-        const { error: profileError }=await db.from('profiles').update({full_name:name,phone,delivery_address:address,buyer_latitude:lat,buyer_longitude:lng}).eq('id',user.id);
-        if(profileError) throw profileError;
+      const rawPay = (typeof selectedPay !== 'undefined' ? selectedPay : 'wallet');
+      const method = (rawPay === 'cod' || rawPay === 'cash_on_delivery') ? 'cash' : rawPay;   // Cash on Delivery is stored as 'cod' by the button
+      if (method === 'card') throw new Error('Card payments are not connected yet. Choose Wallet or Cash.');
+
+      // save the details in the background (not needed to place the order)
+      if (address && Number.isFinite(lat) && Number.isFinite(lng)) {
+        const same = name === profile.full_name && phone === profile.phone && address === profile.delivery_address && Math.abs((profile.buyer_latitude ?? 0) - lat) < 0.0005 && Math.abs((profile.buyer_longitude ?? 0) - lng) < 0.0005;
+        if (!same) { db.from('profiles').update({ full_name: name, phone, delivery_address: address, buyer_latitude: lat, buyer_longitude: lng }).eq('id', user.id).then(r => { if (!r.error) Object.assign(profile, { full_name: name, phone, delivery_address: address, buyer_latitude: lat, buyer_longitude: lng }); }, () => {}); }
       }
-      const rawPay=(typeof selectedPay!=='undefined' ? selectedPay : 'wallet');
-      const method=(rawPay==='cod' || rawPay==='cash_on_delivery') ? 'cash' : rawPay;   // Cash on Delivery is stored as 'cod' by the button
-      if(method==='card') throw new Error('Card payments are not connected yet. Choose Wallet or Cash.');
-      const call=(items,fulfil)=>db.rpc('buyer_checkout',{p_items:items,p_customer_name:name,p_customer_phone:phone,p_delivery_address:address||'',p_buyer_latitude:Number.isFinite(lat)?lat:null,p_buyer_longitude:Number.isFinite(lng)?lng:null,p_payment_method:method,p_fulfillment:fulfil});
-      if(delRows.length){ const r=await call(delRows,'delivery'); if(r.error) throw r.error; cartWrite(pickRows); }
-      if(pickRows.length){ const r=await call(pickRows,'pickup'); if(r.error) throw r.error; cartWrite([]); }
-      renderCart(); await Promise.all([renderOrders(),updateStats()]);
+
+      const keys = requestKeys(rows, method);
+      const call = (items, fulfil, key) => db.rpc('buyer_checkout', { p_items: items, p_customer_name: name, p_customer_phone: phone, p_delivery_address: address || '', p_buyer_latitude: Number.isFinite(lat) ? lat : null, p_buyer_longitude: Number.isFinite(lng) ? lng : null, p_payment_method: method, p_fulfillment: fulfil, p_request_id: key });
+      if (delRows.length) { const r = await call(delRows, 'delivery', keys.d); if (r.error) throw r.error; cartWrite(pickRows); }
+      if (pickRows.length) { const r = await call(pickRows, 'pickup', keys.p); if (r.error) throw r.error; cartWrite([]); }
+      try { sessionStorage.removeItem('be_co'); } catch (e) {}
+      renderCart(); Promise.all([renderOrders(), updateStats()]).catch(() => {});
       msg(pickRows.length && !delRows.length
         ? 'Order placed. The store will prepare it. Collect it from the store when it is ready. No delivery fee.'
-        : method==='wallet'
+        : method === 'wallet'
           ? 'Order placed. The delivery fee shown at checkout is locked and will never increase. If a lower-cost Rider accepts, we automatically return the difference to your Wallet.'
           : 'Order placed. The delivery fee shown at checkout is the most you will pay and will never increase. If a lower-cost Rider accepts, your cash total is reduced.');
-      if(typeof window.openTab==='function') window.openTab('orders',document.querySelectorAll('.bnav-tab')[2]);
-    } catch(error) { fail(error); }
+      if (typeof window.openTab === 'function') window.openTab('orders', document.querySelectorAll('.bnav-tab')[2]);
+    } catch (error) { fail(error); }
+    finally { checkingOut = false; checkoutBusy(false); try { wait && wait.done && wait.done(); } catch (e) {} }
   }
   async function renderOrders() {
     const el=$('ordersList'); if(!el) return;
@@ -275,7 +300,8 @@
       const q=($('orderSearch')?.value||'').trim().toLowerCase();
       const historyStatus=new Set(['delivered','cancelled','rejected']);
       const filtered=(data||[]).filter(o=> (typeof curTab==='undefined' || (curTab==='history'?historyStatus.has(o.status):!historyStatus.has(o.status))) && `${o.order_number} ${o.status} ${(o.order_items||[]).map(i=>i.product_name).join(' ')}`.toLowerCase().includes(q));
-      el.innerHTML=filtered.length?filtered.map(o=>{const step=({pending:1,accepted:2,preparing:2,ready:3,assigned:3,picked_up:4,delivered:5})[o.status]||1; const capped=o.delivery_breakdown?.capped_to_keep_affordable; const pendingMode=o.status==='pending'; return `<div style="padding:12px;background:var(--card3);border-radius:14px;margin-top:10px;border:1px solid var(--border2);color:var(--text)"><div style="display:flex;justify-content:space-between"><b>${esc(o.stores?.store_name||'Order')} • ${esc(o.order_number)}</b><span class="pill">${esc(o.status.replaceAll('_',' '))}</span></div><div style="font-size:11px;color:var(--muted2);margin-top:5px">${new Date(o.created_at).toLocaleString()} • ${(o.order_items||[]).map(i=>`${esc(i.product_name)} × ${i.quantity}`).join(', ')}</div><div style="margin:10px 0">Products ${money(o.product_total)} + delivery ${money(o.delivery_fee)} = <b>${money(o.total)}</b></div>${capped?'<div style="font-size:11px;color:#22c55e;font-weight:800">Delivery capped to keep it affordable.</div>':''}${pendingMode?'<div style="font-size:10px;color:var(--muted);margin-top:5px">This is the most you will pay. The delivery fee cannot increase. If a lower-cost Rider accepts, Wallet money is returned or your cash total is reduced.</div>':''}<div style="display:flex;gap:4px;margin:10px 0">${[1,2,3,4,5].map(i=>`<div style="height:6px;flex:1;border-radius:8px;background:${step>=i?'#22c55e':'#333'}"></div>`).join('')}</div><small>Payment: ${esc(o.payment_method==='cash'?'Cash on delivery':'Wallet')} • ${esc(o.payment_status)}</small>${step<5?`<button onclick="BuyerTracking && BuyerTracking.openMap('${o.id}')" class="btn-white" style="width:100%;margin-top:8px">🗺️ Track Rider Live</button>`:'<div style="color:#22c55e;margin-top:8px">✓ Completed — in History</div>'}</div>`;}).join(''):beEmpty('📦','No orders here yet','When you place an order you can follow it here.');
+      el.innerHTML=filtered.length?filtered.map(o=>{const step=({pending:1,accepted:2,preparing:2,ready:3,assigned:3,picked_up:4,delivered:5})[o.status]||1; const capped=o.delivery_breakdown?.capped_to_keep_affordable; const pendingMode=o.status==='pending'; return `<div class="oc${beCard.cls(o.id)}" data-oc="${esc(o.id)}" style="padding:12px;background:var(--card3);border-radius:14px;margin-top:10px;border:1px solid var(--border2);color:var(--text)"><div class="oc-head" data-oc-toggle style="display:flex;justify-content:space-between;gap:8px"><b>${esc(o.stores?.store_name||'Order')} • ${esc(o.order_number)}</b><span class="pill">${esc(o.status.replaceAll('_',' '))}</span></div><div class="oc-sum" data-oc-toggle><span>${new Date(o.created_at).toLocaleDateString('en-ZA',{day:'numeric',month:'short'})} • ${(o.order_items||[]).reduce((n,i)=>n+Number(i.quantity||1),0)} item(s) • <b>${money(o.total)}</b></span><span class="oc-chev">▾</span></div><div style="display:flex;gap:4px;margin:10px 0 0">${[1,2,3,4,5].map(i=>`<div style="height:6px;flex:1;border-radius:8px;background:${step>=i?'#22c55e':'#333'}"></div>`).join('')}</div><div class="oc-body" style="margin-top:8px"><div style="font-size:11px;color:var(--muted2);margin-top:5px">${new Date(o.created_at).toLocaleString()} • ${(o.order_items||[]).map(i=>`${esc(i.product_name)} × ${i.quantity}`).join(', ')}</div><div style="margin:10px 0">Products ${money(o.product_total)} + delivery ${money(o.delivery_fee)} = <b>${money(o.total)}</b></div>${capped?'<div style="font-size:11px;color:#22c55e;font-weight:800">Delivery capped to keep it affordable.</div>':''}${pendingMode?'<div style="font-size:10px;color:var(--muted);margin-top:5px">This is the most you will pay. The delivery fee cannot increase. If a lower-cost Rider accepts, Wallet money is returned or your cash total is reduced.</div>':''}<small>Payment: ${esc(o.payment_method==='cash'?'Cash on delivery':'Wallet')} • ${esc(o.payment_status)}</small>${step<5?`<button onclick="BuyerTracking && BuyerTracking.openMap('${o.id}')" class="btn-white" style="width:100%;margin-top:8px">🗺️ Track Rider Live</button>`:'<div style="color:#22c55e;margin-top:8px">✓ Completed — in History</div>'}</div></div>`;
+}).join(''):beEmpty('📦','No orders here yet','When you place an order you can follow it here.');
     } catch(error) { fail(error); }
   }
   async function updateStats() {
@@ -307,14 +333,14 @@
     if(typeof buyerLatLng!=='undefined'&&buyerLatLng) popular.sort((a,b)=>a.dist-b.dist);
     const shown=popular.slice(0,6);
     if($('popularSub')) $('popularSub').textContent=buyerLatLng?`Closest popular products • ${shown.length}`:`Popular products • ${shown.length}`;
-    el.innerHTML=shown.length?shown.map(p=>`<div class="prod-card" style="position:relative"><div class="fav-btn ${isFavProduct(p.id)?'active':''}" onclick="toggleFavProd('${p.id}','${p.storeId}')">${isFavProduct(p.id)?'❤️':'🤍'}</div><img src="${esc(p.img)}" style="width:100%;height:110px;object-fit:cover" onclick="openGallery('${p.id}')"><div class="prod-info"><div class="prod-name">🔥 ${esc(p.name)}</div><div class="prod-meta">${esc(p.storeName)} • ${money(p.price)}</div>${p.dist<9999?`<div class="prod-meta">${p.dist.toFixed(1)} km away</div>`:''}<button onclick="addToCartByProductId('${p.id}')" class="add-btn">Add</button></div></div>`).join(''):'<p style="color:var(--muted);font-size:10px">No popular products yet</p>';
+    el.innerHTML=shown.length?shown.map(p=>`<div class="prod-card" style="position:relative"><div class="fav-btn ${isFavProduct(p.id)?'active':''}" onclick="toggleFavProd('${p.id}','${p.storeId}')">${isFavProduct(p.id)?'❤️':'🤍'}</div><img loading="lazy" decoding="async" src="${esc(p.img)}" style="width:100%;height:110px;object-fit:cover" onclick="openGallery('${p.id}')"><div class="prod-info"><div class="prod-name">🔥 ${esc(p.name)}</div><div class="prod-meta">${esc(p.storeName)} • ${money(p.price)}</div>${p.dist<9999?`<div class="prod-meta">${p.dist.toFixed(1)} km away</div>`:''}<button onclick="addToCartByProductId('${p.id}')" class="add-btn">Add</button></div></div>`).join(''):'<p style="color:var(--muted);font-size:10px">No popular products yet</p>';
   }
   function viewStore(storeId) {
     const products=state.products.filter(p=>p.storeId===storeId), store=products[0]; if(!store)return;
     currentStoreModal={email:storeId,profile:{storeName:store.storeName,storeAddress:store.storeAddr},phone:store.storePhone,lat:store.storeLat,lng:store.storeLng};
     if($('storeModalName')) $('storeModalName').textContent=store.storeName;
     if($('storeModalInfo')) $('storeModalInfo').textContent=`${store.storeAddr||'No address'} • ${store.online?'Online':'Offline'}`;
-    if($('storeModalProds')) $('storeModalProds').innerHTML=products.map(p=>`<div class="prod-card"><img src="${esc(p.img)}"><div class="prod-info"><div class="prod-name">${esc(p.name)}</div><div class="prod-price">${money(p.price)}</div><button onclick="addToCartFromModal('${p.id}','${p.storeId}')" class="add-btn" ${p.online?'':'disabled'}>${p.online?'Add':'Offline'}</button></div></div>`).join('')||'<p>No products.</p>';
+    if($('storeModalProds')) $('storeModalProds').innerHTML=products.map(p=>`<div class="prod-card"><img loading="lazy" decoding="async" src="${esc(p.img)}"><div class="prod-info"><div class="prod-name">${esc(p.name)}</div><div class="prod-price">${money(p.price)}</div><button onclick="addToCartFromModal('${p.id}','${p.storeId}')" class="add-btn" ${p.online?'':'disabled'}>${p.online?'Add':'Offline'}</button></div></div>`).join('')||'<p>No products.</p>';
     if($('storeModal')) $('storeModal').classList.add('open');
     if(typeof window.updateFavBtn==='function') window.updateFavBtn();
   }
@@ -352,7 +378,7 @@
     const storeFavs=state.favourites.filter(x=>x.store_id&&!x.product_id);
     const productFavs=state.favourites.filter(x=>x.product_id);
     if(storesEl) storesEl.innerHTML=storeFavs.length?storeFavs.map(f=>{const p=state.products.find(x=>x.storeId===f.store_id); const name=p?.storeName||'Favourite store'; return `<div class="fav-store-row"><div class="fav-store-left"><div class="fav-store-icon">${esc(name[0]||'S')}</div><div><div class="fav-store-name">${esc(name)}</div></div></div><div class="fav-store-actions"><button class="pill" onclick="setStore('${f.store_id}')">View</button><button class="pill" onclick="toggleFavStore('${f.store_id}')">✕</button></div></div>`;}).join(''):'<p style="color:var(--muted);font-size:11px">No favourite stores yet.</p>';
-    if(productsEl) productsEl.innerHTML=productFavs.length?productFavs.map(f=>{const p=state.products.find(x=>x.id===f.product_id); if(!p)return ''; return `<div class="fav-prod-card"><div class="fav-remove" onclick="toggleFavProd('${p.id}','${p.storeId}')">✕</div><img src="${esc(p.img)}"><div class="fav-prod-info"><div class="fav-prod-name">${esc(p.name)}</div><div class="fav-prod-meta">${esc(p.storeName)}</div><div class="fav-prod-price">${money(p.price)}</div><div class="fav-prod-actions"><button onclick="addToCartByIndexFav('${p.id}','${p.storeId}')" class="add-btn">Add</button></div></div></div>`;}).join(''):'<p style="color:var(--muted);font-size:11px">No favourite products yet.</p>';
+    if(productsEl) productsEl.innerHTML=productFavs.length?productFavs.map(f=>{const p=state.products.find(x=>x.id===f.product_id); if(!p)return ''; return `<div class="fav-prod-card"><div class="fav-remove" onclick="toggleFavProd('${p.id}','${p.storeId}')">✕</div><img loading="lazy" decoding="async" src="${esc(p.img)}"><div class="fav-prod-info"><div class="fav-prod-name">${esc(p.name)}</div><div class="fav-prod-meta">${esc(p.storeName)}</div><div class="fav-prod-price">${money(p.price)}</div><div class="fav-prod-actions"><button onclick="addToCartByIndexFav('${p.id}','${p.storeId}')" class="add-btn">Add</button></div></div></div>`;}).join(''):'<p style="color:var(--muted);font-size:11px">No favourite products yet.</p>';
   }
   function unavailablePayment() { msg('Card storage and wallet top-ups are disabled until a real payment provider is connected. No card details are saved.'); return false; }
 
